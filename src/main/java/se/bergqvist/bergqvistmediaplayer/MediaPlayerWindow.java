@@ -12,8 +12,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -36,6 +40,9 @@ public class MediaPlayerWindow {
 
     private final JFrame frame;
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+    private final SortedMap<Integer, String> bookmarkLabels = new TreeMap<>();
+    private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
+    private final Properties movieProperties = new Properties();
 
 
     public static void main(String[] args) {
@@ -54,37 +61,48 @@ public class MediaPlayerWindow {
         new MediaPlayerWindow(file);
     }
 
-    private Properties load(File f) {
+    private void load(File f) {
         File propFile = new File(f.getAbsoluteFile()+".bergqvist");
-        Properties p = new Properties();
         if (propFile.exists()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(propFile, StandardCharsets.UTF_8))) {
-                p.load(reader);
+                movieProperties.load(reader);
+                loadBookmarks();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return p;
     }
 
-    private Properties store(File f) {
+    private void loadBookmarks() {
+        for (Object k : movieProperties.keySet()) {
+            String key = k.toString();
+            if (key.startsWith("Bookmark_Label_")) {
+                String idStr = key.substring("Bookmark_Label_".length());
+                int id = Integer.parseInt(idStr);
+                String label = movieProperties.getProperty(key);
+                long time = Long.parseLong(movieProperties.getProperty("Bookmark_Time_"+idStr));
+                bookmarkLabels.put(id, label);
+                bookmarkTimes.put(id, time);
+            }
+        }
+    }
+
+    private void store(File f) {
         File propFile = new File(f.getAbsoluteFile()+".bergqvist");
-        Properties p = new Properties();
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(propFile, StandardCharsets.UTF_8))) {
             long time = mediaPlayerComponent.mediaPlayer().status().time();
-            p.setProperty("Time", Long.toString(time));
-            p.store(writer, f.getAbsolutePath());
+            movieProperties.setProperty("Time", Long.toString(time));
+            movieProperties.store(writer, f.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return p;
     }
 
     public MediaPlayerWindow(File f) {
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
 
-        Properties p = load(f);
+        load(f);
 
         frame = new JFrame("My First Media Player");
 
@@ -260,6 +278,17 @@ public class MediaPlayerWindow {
         });
         controlsPane.add(skipButton);
 
+
+        for (var entry : bookmarkLabels.entrySet()) {
+            JButton button = new JButton(entry.getValue());
+            button.addActionListener(e -> {
+                mediaPlayer.controls().setTime((long)bookmarkTimes.get(entry.getKey()));
+            });
+            controlsPane.add(button);
+        }
+
+
+
         slider.addChangeListener(e -> {
             if (slider.isEnabled()) {
                 System.out.format("Set slider listener%n");
@@ -288,7 +317,7 @@ public class MediaPlayerWindow {
 //        mediaPlayer.controls().skipTime(5000);
 //        mediaPlayer.controls().setTime(300*1000);
 //        mediaPlayer.controls().setTime(311090);
-        long time = Long.parseLong(p.getProperty("Time"));
+        long time = Long.parseLong(movieProperties.getProperty("Time"));
         mediaPlayer.controls().setTime(time);
         System.out.format("Load completed%n");
     }
