@@ -3,7 +3,6 @@ package se.bergqvist.bergqvistmediaplayer;
 import java.awt.BorderLayout;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
-import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
@@ -18,6 +17,7 @@ import java.util.Properties;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -81,6 +81,9 @@ public class MediaPlayerWindow {
     }
 
     public MediaPlayerWindow(File f) {
+        JSlider slider = new JSlider(0,1000);
+        slider.setEnabled(false);
+
         Properties p = load(f);
 
         frame = new JFrame("My First Media Player");
@@ -168,7 +171,12 @@ public class MediaPlayerWindow {
                     @Override
                     public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
                         System.out.format(":: New time: %s%n", newTime);
-                        System.out.format(":: New time: %s%n", mediaPlayer.status().time());
+//                        System.out.format(":: New time: %s%n", mediaPlayer.status().time());
+                        slider.setEnabled(false);
+                        System.out.format("Set slider%n");
+                        slider.setValue((int) (newTime/1000));
+                        System.out.format("Set slider done%n");
+                        slider.setEnabled(true);
                     }
 
                     @Override
@@ -194,6 +202,7 @@ public class MediaPlayerWindow {
                     @Override
                     public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
                         System.out.format(":: Length changed: %s%n", newLength);
+                        slider.setMaximum((int) (newLength/1000));
                     }
 
                     @Override
@@ -232,24 +241,33 @@ public class MediaPlayerWindow {
         JPanel controlsPane = new JPanel();
 
         JButton pauseButton = new JButton("Pause");
-        pauseButton.addActionListener((ActionEvent e) -> {
+        pauseButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
         });
         controlsPane.add(pauseButton);
 
         JButton rewindButton = new JButton("Rewind");
-        rewindButton.addActionListener((ActionEvent e) -> {
+        rewindButton.addActionListener(e -> {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000);
         });
         controlsPane.add(rewindButton);
 
         JButton skipButton = new JButton("Skip");
-        skipButton.addActionListener((ActionEvent e) -> {
+        skipButton.addActionListener(e -> {
 //            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000);
         });
         controlsPane.add(skipButton);
+
+        slider.addChangeListener(e -> {
+            if (slider.isEnabled()) {
+                System.out.format("Set slider listener%n");
+                mediaPlayer.controls().setTime(slider.getValue()*1000);
+//                System.exit(0);
+            }
+        });
+        controlsPane.add(slider);
 
         contentPane.add(controlsPane, BorderLayout.SOUTH);
 
