@@ -58,7 +58,9 @@ public class MainFrame extends javax.swing.JFrame {
 
         ListSelectionListener movieSelectionListener = (ListSelectionEvent evt) -> {
             if(!evt.getValueIsAdjusting() && movieList.getSelectedValue() != null) {
-                System.out.format("Movie: %s%n", movieList.getSelectedValue().getMovie());
+                Path movie = movieList.getSelectedValue().getMovie();
+                System.out.format("Movie: %s%n", movie);
+                MediaPlayerWindow mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
             }
         };
         movieList.addListSelectionListener(movieSelectionListener);

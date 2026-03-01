@@ -45,7 +45,7 @@ public class MediaPlayerWindow {
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
     private final Properties movieProperties = new Properties();
 
-
+/*
     public static void main(String[] args) {
         File settingsFile = new File("/BergqvistMediaPlayer/settings.bergqvist");
         Properties p = new Properties();
@@ -61,7 +61,7 @@ public class MediaPlayerWindow {
         File file = new File(p.getProperty("Movie"));
         new MediaPlayerWindow(file);
     }
-
+*/
     private void load(File f) {
         File propFile = new File(f.getAbsoluteFile()+".bergqvist");
         if (propFile.exists()) {
@@ -117,19 +117,18 @@ public class MediaPlayerWindow {
                 // Release mediaPlayerComponent.
                 mediaPlayerComponent.release();
                 System.out.println("Exit BergqvistMediaPlayer");
-                System.exit(0);
+                frame.dispose();
+//                System.exit(0);
             }
         });
 
-
-        frame.setUndecorated(true);
 
 //        // https://stackoverflow.com/questions/45722445/how-to-set-jframe-to-full-screen
 //        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
         frame.setUndecorated(true);
 //        frame.setBounds(100, 100, 600, 400);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout());
