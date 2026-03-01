@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -99,10 +100,12 @@ public class MediaPlayerWindow {
     }
 
     public MediaPlayerWindow(File f) {
+        AtomicReference<File> fileRef = new AtomicReference<>(f);
+
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
 
-        load(f);
+        load(fileRef.get());
 
         frame = new JFrame("My First Media Player");
 
@@ -110,7 +113,7 @@ public class MediaPlayerWindow {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                store(f);
+                store(fileRef.get());
                 // Release mediaPlayerComponent.
                 mediaPlayerComponent.release();
                 System.out.println("Exit BergqvistMediaPlayer");
@@ -162,13 +165,13 @@ public class MediaPlayerWindow {
                     @Override
                     public void paused(MediaPlayer mediaPlayer) {
                         System.out.format(":: Paused%n");
-                        store(f);
+                        store(fileRef.get());
                     }
 
                     @Override
                     public void stopped(MediaPlayer mediaPlayer) {
                         System.out.format(":: Stopped%n");
-                        store(f);
+                        store(fileRef.get());
                     }
 
                     @Override
@@ -220,7 +223,9 @@ public class MediaPlayerWindow {
                     @Override
                     public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
                         System.out.format(":: Length changed: %s%n", newLength);
+                        slider.setEnabled(false);
                         slider.setMaximum((int) (newLength/1000));
+                        slider.setEnabled(true);
                     }
 
                     @Override
@@ -257,6 +262,21 @@ public class MediaPlayerWindow {
                 });
 
         JPanel controlsPane = new JPanel();
+
+        JButton loadButton = new JButton("Load");
+        loadButton.addActionListener(e -> {
+            mediaPlayer.controls().pause();
+            fileRef.set(null);
+            mediaPlayer.submit(() -> {
+                movieProperties.clear();
+                fileRef.set(new File("/daniel_data/film/Full_resolution/brollop.i.italien-682cb35-svtplay.mp4"));
+                load(fileRef.get());
+                mediaPlayer.media().play(fileRef.get().getAbsolutePath());
+                long time = Long.parseLong(movieProperties.getProperty("Time"));
+                mediaPlayer.controls().setTime(time);
+            });
+        });
+        controlsPane.add(loadButton);
 
         JButton pauseButton = new JButton("Pause");
         pauseButton.addActionListener(e -> {
@@ -308,9 +328,9 @@ public class MediaPlayerWindow {
 //        // https://stackoverflow.com/questions/11570356/jframe-in-full-screen-java
 //        device.setFullScreenWindow(null);
 
-        System.out.format("Start paused: %s%n", f.getAbsolutePath());
+        System.out.format("Start paused: %s%n", fileRef.get().getAbsolutePath());
 //        mediaPlayer.media().startPaused(f.getAbsolutePath());
-        mediaPlayer.media().play(f.getAbsolutePath());
+        mediaPlayer.media().play(fileRef.get().getAbsolutePath());
 
 //        mediaPlayer.controls().setPosition(10f);
         System.out.format("Skip time: 5000%n");
