@@ -245,7 +245,7 @@ public class MediaPlayerWindow {
                 });
 
         JPanel controlsPane = new JPanel();
-
+/*
         JButton loadButton = new JButton("Load");
         loadButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
@@ -260,7 +260,7 @@ public class MediaPlayerWindow {
             });
         });
         controlsPane.add(loadButton);
-
+*/
         JButton pauseButton = new JButton("Pause");
         pauseButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
