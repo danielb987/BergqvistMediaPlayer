@@ -149,7 +149,7 @@ public class MediaPlayerWindow {
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout());
 
-        System.out.format("Load MediaPlayerComponent%n");
+//        System.out.format("Load MediaPlayerComponent%n");
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
@@ -159,12 +159,12 @@ public class MediaPlayerWindow {
 
                     @Override
                     public void mediaChanged(MediaPlayer mediaPlayer, MediaRef media) {
-                        System.out.format(":: New media: %s%n", media.duplicateMedia().info().mrl());
+//                        System.out.format(":: New media: %s%n", media.duplicateMedia().info().mrl());
                     }
 
                     @Override
                     public void opening(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Opening%n");
+//                        System.out.format(":: Opening%n");
                     }
 
                     @Override
@@ -174,70 +174,70 @@ public class MediaPlayerWindow {
 
                     @Override
                     public void playing(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Playing%n");
+//                        System.out.format(":: Playing%n");
                     }
 
                     @Override
                     public void paused(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Paused%n");
+//                        System.out.format(":: Paused%n");
                         store(fileRef.get());
                     }
 
                     @Override
                     public void stopped(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Stopped%n");
+//                        System.out.format(":: Stopped%n");
                         store(fileRef.get());
                     }
 
                     @Override
                     public void forward(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Forward%n");
+//                        System.out.format(":: Forward%n");
                     }
 
                     @Override
                     public void backward(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Backward%n");
+//                        System.out.format(":: Backward%n");
                     }
 
                     @Override
                     public void finished(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Finished%n");
+//                        System.out.format(":: Finished%n");
                     }
 
                     @Override
                     public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
-                        System.out.format(":: New time: %s%n", newTime);
+//                        System.out.format(":: New time: %s%n", newTime);
 //                        System.out.format(":: New time: %s%n", mediaPlayer.status().time());
                         slider.setEnabled(false);
-                        System.out.format("Set slider%n");
+//                        System.out.format("Set slider%n");
                         slider.setValue((int) (newTime/1000));
-                        System.out.format("Set slider done%n");
+//                        System.out.format("Set slider done%n");
                         slider.setEnabled(true);
                     }
 
                     @Override
                     public void positionChanged(MediaPlayer mediaPlayer, float newPosition) {
-                        System.out.format(":: New position: %s%n", newPosition);
+//                        System.out.format(":: New position: %s%n", newPosition);
                     }
 
                     @Override
                     public void seekableChanged(MediaPlayer mediaPlayer, int newSeekable) {
-                        System.out.format(":: Seekable changed: %s%n", newSeekable);
+//                        System.out.format(":: Seekable changed: %s%n", newSeekable);
                     }
 
                     @Override
                     public void pausableChanged(MediaPlayer mediaPlayer, int newPausable) {
-                        System.out.format(":: Pausable changed: %s%n", newPausable);
+//                        System.out.format(":: Pausable changed: %s%n", newPausable);
                     }
 
                     @Override
                     public void titleChanged(MediaPlayer mediaPlayer, int newTitle) {
-                        System.out.format(":: Title changed: %s%n", newTitle);
+//                        System.out.format(":: Title changed: %s%n", newTitle);
                     }
 
                     @Override
                     public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
-                        System.out.format(":: Length changed: %s%n", newLength);
+//                        System.out.format(":: Length changed: %s%n", newLength);
                         slider.setEnabled(false);
                         slider.setMaximum((int) (newLength/1000));
                         slider.setEnabled(true);
@@ -245,17 +245,17 @@ public class MediaPlayerWindow {
 
                     @Override
                     public void chapterChanged(MediaPlayer mediaPlayer, int newChapter) {
-                        System.out.format(":: Chapter changed: %s%n", newChapter);
+//                        System.out.format(":: Chapter changed: %s%n", newChapter);
                     }
 
                     @Override
                     public void error(MediaPlayer mediaPlayer) {
-                        System.out.format(":: Error: %s%n", mediaPlayer);
+//                        System.out.format(":: Error: %s%n", mediaPlayer);
                     }
 
                     @Override
                     public void mediaPlayerReady(MediaPlayer mediaPlayer) {
-                        System.out.format(":: MediaPlayerReady%n");
+//                        System.out.format(":: MediaPlayerReady%n");
 /*
                         // Hide subtitles
                         List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
@@ -328,7 +328,7 @@ public class MediaPlayerWindow {
 
         slider.addChangeListener(e -> {
             if (slider.isEnabled()) {
-                System.out.format("Set slider listener%n");
+//                System.out.format("Set slider listener%n");
                 mediaPlayer.controls().setTime(slider.getValue()*1000);
 //                System.exit(0);
             }
@@ -345,18 +345,18 @@ public class MediaPlayerWindow {
 //        // https://stackoverflow.com/questions/11570356/jframe-in-full-screen-java
 //        device.setFullScreenWindow(null);
 
-        System.out.format("Start paused: %s%n", fileRef.get().getAbsolutePath());
+//        System.out.format("Start paused: %s%n", fileRef.get().getAbsolutePath());
 //        mediaPlayer.media().startPaused(f.getAbsolutePath());
         mediaPlayer.media().play(fileRef.get().getAbsolutePath());
 
 //        mediaPlayer.controls().setPosition(10f);
-        System.out.format("Skip time: 5000%n");
+//        System.out.format("Skip time: 5000%n");
 //        mediaPlayer.controls().skipTime(5000);
 //        mediaPlayer.controls().setTime(300*1000);
 //        mediaPlayer.controls().setTime(311090);
         long time = Long.parseLong(movieProperties.getProperty("Time"));
         mediaPlayer.controls().setTime(time);
-        System.out.format("Load completed%n");
+//        System.out.format("Load completed%n");
 
 //        KeyStroke enterKeyStroke = KeyStroke.getKeyStroke("ENTER");
 
