@@ -31,6 +31,10 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
+        folderList.setFont(folderList.getFont().deriveFont(22f));
+        movieList.setFont(movieList.getFont().deriveFont(22f));
+        jSplitPane1.setDividerLocation(0.6);
+        jSplitPane1.setResizeWeight(0.6);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         loadMovies();
     }
@@ -137,9 +141,10 @@ public class MainFrame extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jScrollPane2 = new javax.swing.JScrollPane();
+        jSplitPane1 = new javax.swing.JSplitPane();
+        folderListScrollPane = new javax.swing.JScrollPane();
         folderList = new JList(folderModel);
-        jScrollPane1 = new javax.swing.JScrollPane();
+        movieListScrollPane = new javax.swing.JScrollPane();
         movieList = new JList(movieModel);
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenu = new javax.swing.JMenu();
@@ -149,9 +154,15 @@ public class MainFrame extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jScrollPane2.setViewportView(folderList);
+        jSplitPane1.setDividerLocation(300);
 
-        jScrollPane1.setViewportView(movieList);
+        folderListScrollPane.setViewportView(folderList);
+
+        jSplitPane1.setLeftComponent(folderListScrollPane);
+
+        movieListScrollPane.setViewportView(movieList);
+
+        jSplitPane1.setRightComponent(movieListScrollPane);
 
         fileMenu.setText("File");
 
@@ -178,15 +189,11 @@ public class MainFrame extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 389, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 398, Short.MAX_VALUE))
+            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 799, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane2)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 517, Short.MAX_VALUE)
+            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 517, Short.MAX_VALUE)
         );
 
         pack();
@@ -219,12 +226,13 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JMenu editMenu;
     private javax.swing.JMenu fileMenu;
     private javax.swing.JList<String> folderList;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane folderListScrollPane;
+    private javax.swing.JSplitPane jSplitPane1;
     private javax.swing.JMenuBar mainMenuBar;
     private javax.swing.JMenuItem menuItemPreferences;
     private javax.swing.JMenuItem menuItemQuit;
     private javax.swing.JList<MovieItem> movieList;
+    private javax.swing.JScrollPane movieListScrollPane;
     // End of variables declaration//GEN-END:variables
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(MainFrame.class.getName());
