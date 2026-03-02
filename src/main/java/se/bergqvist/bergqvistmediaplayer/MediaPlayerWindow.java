@@ -354,8 +354,10 @@ public class MediaPlayerWindow {
 //        mediaPlayer.controls().skipTime(5000);
 //        mediaPlayer.controls().setTime(300*1000);
 //        mediaPlayer.controls().setTime(311090);
-        long time = Long.parseLong(movieProperties.getProperty("Time"));
-        mediaPlayer.controls().setTime(time);
+        if (movieProperties.containsKey("Time")) {
+            long time = Long.parseLong(movieProperties.getProperty("Time"));
+            mediaPlayer.controls().setTime(time);
+        }
 //        System.out.format("Load completed%n");
 
 //        KeyStroke enterKeyStroke = KeyStroke.getKeyStroke("ENTER");
