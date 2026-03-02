@@ -278,6 +278,7 @@ public class MediaPlayerWindow {
                 });
 
         JPanel controlsPane = new JPanel();
+        controlsPane.setVisible(false);
 /*
         JButton loadButton = new JButton("Load");
         loadButton.addActionListener(e -> {
