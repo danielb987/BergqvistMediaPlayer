@@ -3,6 +3,7 @@ package se.bergqvist.bergqvistmediaplayer;
 import java.awt.BorderLayout;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
@@ -19,10 +20,15 @@ import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
+import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -44,6 +50,8 @@ public class MediaPlayerWindow {
     private final SortedMap<Integer, String> bookmarkLabels = new TreeMap<>();
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
     private final Properties movieProperties = new Properties();
+
+    private boolean showSubtitles = true;
 
 
     private void load(File f) {
@@ -83,6 +91,36 @@ public class MediaPlayerWindow {
         }
     }
 
+    private void closeWindow(File f) {
+        mediaPlayerComponent.mediaPlayer().submit(() -> {
+            store(f);
+            // Release mediaPlayerComponent.
+            mediaPlayerComponent.mediaPlayer().controls().pause();
+            mediaPlayerComponent.release();
+            System.out.println("Exit BergqvistMediaPlayer");
+            SwingUtilities.invokeLater(frame::dispose);
+        });
+    }
+
+    private void showOrHideSubtitles() {
+        MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
+
+        showSubtitles = !showSubtitles;
+
+        if (showSubtitles) {
+            // Enable subtitles
+            List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+            for (var track : tracks) {
+                if (track.id() != -1) {
+                    mediaPlayer.subpictures().setTrack(track.id());
+                }
+            }
+        } else {
+            // Disable subtitles
+            mediaPlayer.subpictures().setTrack(-1);
+        }
+    }
+
     public MediaPlayerWindow(File f) {
         AtomicReference<File> fileRef = new AtomicReference<>(f);
 
@@ -97,15 +135,9 @@ public class MediaPlayerWindow {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                store(fileRef.get());
-                // Release mediaPlayerComponent.
-                mediaPlayerComponent.release();
-                System.out.println("Exit BergqvistMediaPlayer");
-                frame.dispose();
-//                System.exit(0);
+                closeWindow(fileRef.get());
             }
         });
-
 
 //        // https://stackoverflow.com/questions/45722445/how-to-set-jframe-to-full-screen
 //        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -224,7 +256,7 @@ public class MediaPlayerWindow {
                     @Override
                     public void mediaPlayerReady(MediaPlayer mediaPlayer) {
                         System.out.format(":: MediaPlayerReady%n");
-
+/*
                         // Hide subtitles
                         List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
                         System.out.format("Num tracks: %d%n", tracks.size());
@@ -241,6 +273,7 @@ public class MediaPlayerWindow {
                             }
                         }
 //                        mediaPlayer.subpictures().setSpu(trackId);
+*/
                     }
                 });
 
@@ -323,6 +356,44 @@ public class MediaPlayerWindow {
         long time = Long.parseLong(movieProperties.getProperty("Time"));
         mediaPlayer.controls().setTime(time);
         System.out.format("Load completed%n");
+
+//        KeyStroke enterKeyStroke = KeyStroke.getKeyStroke("ENTER");
+
+        KeyStroke f1KeyStroke = KeyStroke.getKeyStroke("F1");
+        Action f1Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                controlsPane.setVisible(!controlsPane.isVisible());
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f1KeyStroke, "F1");
+        frame.getRootPane().getActionMap().put("F1", f1Action);
+
+        KeyStroke f2KeyStroke = KeyStroke.getKeyStroke("F2");
+        Action f2Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.submit(() -> {
+                    showOrHideSubtitles();
+                });
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
+        frame.getRootPane().getActionMap().put("F2", f2Action);
+/*
+        KeyStroke escapeKeyStroke = KeyStroke.getKeyStroke("ESCAPE");
+        Action escapeAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                closeWindow(fileRef.get());
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escapeKeyStroke, "ESCAPE");
+        frame.getRootPane().getActionMap().put("ESCAPE", escapeAction);
+*/
     }
 
 }
