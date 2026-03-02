@@ -46,9 +46,10 @@ public class MainFrame extends javax.swing.JFrame {
             if(!evt.getValueIsAdjusting()) {
                 System.out.format("Folder: %s%n", folderList.getSelectedValue());
                 movieModel.clear();
-                for (Path p : foldersAndMovies.get(folderList.getSelectedValue())) {
+                List<Path> movies = new ArrayList<>(foldersAndMovies.get(folderList.getSelectedValue()));
+                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
+                for (Path p : movies) {
                     movieModel.addElement(new MovieItem(p));
-//                    movieModel.addElement(p.getFileName().toString());
                 }
             }
         };

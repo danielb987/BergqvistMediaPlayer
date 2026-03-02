@@ -45,23 +45,7 @@ public class MediaPlayerWindow {
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
     private final Properties movieProperties = new Properties();
 
-/*
-    public static void main(String[] args) {
-        File settingsFile = new File("/BergqvistMediaPlayer/settings.bergqvist");
-        Properties p = new Properties();
-        if (!settingsFile.exists()) {
-            System.out.format("Settings file doesn't exists: %s%n", settingsFile.getAbsolutePath());
-            System.exit(1);
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(settingsFile, StandardCharsets.UTF_8))) {
-            p.load(reader);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        File file = new File(p.getProperty("Movie"));
-        new MediaPlayerWindow(file);
-    }
-*/
+
     private void load(File f) {
         File propFile = new File(f.getAbsoluteFile()+".bergqvist");
         if (propFile.exists()) {
