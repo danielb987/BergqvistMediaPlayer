@@ -37,9 +37,10 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
+        folderTree.setFont(folderTree.getFont().deriveFont(22f));
         movieList.setFont(movieList.getFont().deriveFont(22f));
-        jSplitPane1.setDividerLocation(0.6);
-        jSplitPane1.setResizeWeight(0.6);
+        jSplitPane1.setDividerLocation(0.4);
+        jSplitPane1.setResizeWeight(0.4);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         loadMovies();
     }
