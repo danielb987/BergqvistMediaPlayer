@@ -9,8 +9,13 @@ import java.util.stream.Stream;
 import javax.swing.DefaultListModel;
 import javax.swing.JFrame;
 import javax.swing.JList;
+import javax.swing.JTree;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
+import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreePath;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
 /**
@@ -21,9 +26,10 @@ import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 public class MainFrame extends javax.swing.JFrame {
 
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+    private final MyTreeModel folderTreeModel = new MyTreeModel();
     private final DefaultListModel folderModel = new DefaultListModel();
     private final DefaultListModel<MovieItem> movieModel = new DefaultListModel<>();
-    private final SortedMap<String, List<Path>> foldersAndMovies = new TreeMap<>();
+    private final SortedMap<Path, List<Path>> foldersAndMovies = new TreeMap<>();
 
     /**
      * Creates new form MainFrame
@@ -31,10 +37,10 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
-        folderList.setFont(folderList.getFont().deriveFont(22f));
+        folderTree.setFont(folderTree.getFont().deriveFont(22f));
         movieList.setFont(movieList.getFont().deriveFont(22f));
-        jSplitPane1.setDividerLocation(0.6);
-        jSplitPane1.setResizeWeight(0.6);
+        jSplitPane1.setDividerLocation(0.4);
+        jSplitPane1.setResizeWeight(0.4);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         loadMovies();
     }
@@ -45,21 +51,16 @@ public class MainFrame extends javax.swing.JFrame {
         System.exit(0);
     }
 
+    public void expandAll(JTree tree) {
+        int row = 0;
+        while (row < tree.getRowCount()) {
+            tree.expandRow(row);
+            row++;
+        }
+    }
+
     private void loadMovies() {
-        ListSelectionListener folderSelectionListener = (ListSelectionEvent evt) -> {
-            if(!evt.getValueIsAdjusting()) {
-                System.out.format("Folder: %s%n", folderList.getSelectedValue());
-                movieModel.clear();
-                List<Path> movies = new ArrayList<>(foldersAndMovies.get(folderList.getSelectedValue()));
-                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
-                for (Path p : movies) {
-                    movieModel.addElement(new MovieItem(p));
-                }
-            }
-        };
-        folderList.addListSelectionListener(folderSelectionListener);
         var mainFolders = SystemProperties.get().getMainFolders();
-        folderModel.addAll(mainFolders);
 
         ListSelectionListener movieSelectionListener = (ListSelectionEvent evt) -> {
             if(!evt.getValueIsAdjusting() && movieList.getSelectedValue() != null) {
@@ -93,8 +94,9 @@ public class MainFrame extends javax.swing.JFrame {
                     paths
                         .filter(Files::isRegularFile)
                         .forEach(path -> {
+
                             String filename = path.getFileName().toString();
-                            String filenameFolder = path.getParent().toString();
+                            Path filenameFolder = path.getParent();
 
                             String extension = "";
                             int extensionPos = filename.lastIndexOf('.');
@@ -126,9 +128,30 @@ public class MainFrame extends javax.swing.JFrame {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        folderTree.addTreeSelectionListener((e) -> {
+            var folder = ((TreeItem)e.getPath().getLastPathComponent()).getFolder();
+            movieModel.clear();
+            List<Path> tempList = foldersAndMovies.get(folder);
+            if (tempList != null) {
+                List<Path> movies = new ArrayList<>(tempList);
+                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
+                for (Path p : movies) {
+                    movieModel.addElement(new MovieItem(p));
+                }
+            }
+        });
+
         movieModel.clear();
         folderModel.clear();
         folderModel.addAll(foldersAndMovies.keySet());
+
+        for (Path p : foldersAndMovies.keySet()) {
+            folderTreeModel.getFolderNode(p);
+        }
+        folderTreeModel.notifyTreeChanged();
+        expandAll(folderTree);
+
 //        exitProgram();
     }
 
@@ -142,8 +165,8 @@ public class MainFrame extends javax.swing.JFrame {
     private void initComponents() {
 
         jSplitPane1 = new javax.swing.JSplitPane();
-        folderListScrollPane = new javax.swing.JScrollPane();
-        folderList = new JList(folderModel);
+        jScrollPane1 = new javax.swing.JScrollPane();
+        folderTree = new javax.swing.JTree();
         movieListScrollPane = new javax.swing.JScrollPane();
         movieList = new JList(movieModel);
         mainMenuBar = new javax.swing.JMenuBar();
@@ -156,9 +179,11 @@ public class MainFrame extends javax.swing.JFrame {
 
         jSplitPane1.setDividerLocation(300);
 
-        folderListScrollPane.setViewportView(folderList);
+        folderTree.setModel(folderTreeModel);
+        folderTree.setRootVisible(false);
+        jScrollPane1.setViewportView(folderTree);
 
-        jSplitPane1.setLeftComponent(folderListScrollPane);
+        jSplitPane1.setLeftComponent(jScrollPane1);
 
         movieListScrollPane.setViewportView(movieList);
 
@@ -204,6 +229,7 @@ public class MainFrame extends javax.swing.JFrame {
         System.exit(0);
     }//GEN-LAST:event_menuItemQuitActionPerformed
 
+
     private static class MovieItem {
 
         private final Path movie;
@@ -222,11 +248,129 @@ public class MainFrame extends javax.swing.JFrame {
         }
     }
 
+
+    private static class TreeItem {
+        private final Path folder;
+        private final List<TreeItem> children = new ArrayList<>();
+
+        public TreeItem(Path p) {
+            this.folder = p;
+        }
+
+        public Path getFolder() {
+            return folder;
+        }
+
+        public List<TreeItem> getChildren() {
+            return children;
+        }
+
+        @Override
+        public String toString() {
+            if (folder != null) {
+                return folder.getFileName().toString();
+            } else {
+                return "";
+            }
+        }
+    }
+
+
+    private static class MyTreeModel implements TreeModel {
+
+        private final TreeItem root = new TreeItem(null);
+        private final Map<Path, TreeItem> pathTreeItemMap = new HashMap<>();
+        private final List<TreeModelListener> listeners = new ArrayList<>();
+
+
+        public MyTreeModel() {
+
+        }
+
+        @Override
+        public Object getRoot() {
+            return root;
+        }
+
+        public TreeItem getFolderNode(Path folder) {
+            int index = folder.getNameCount();
+            TreeItem item = null;
+            Path tempPath = folder;
+            while (!tempPath.toString().equals("/") && (item = pathTreeItemMap.get(tempPath)) == null) {
+                tempPath = tempPath.getParent();
+                index--;
+            }
+            if (item == null) {
+                item = root;
+            }
+            Path rootPath = Path.of("/");
+            if (folder != tempPath) {
+                for (int i=index; i < folder.getNameCount(); i++) {
+                    Path thisPath = rootPath.resolve(folder.subpath(0, i+1));
+                    TreeItem newItem = new TreeItem(thisPath);
+                    item.children.add(newItem);
+                    pathTreeItemMap.put(thisPath, newItem);
+                    item = newItem;
+                }
+            }
+            return item;
+        }
+
+        @Override
+        public Object getChild(Object parent, int index) {
+            return ((TreeItem)parent).children.get(index);
+        }
+
+        @Override
+        public int getChildCount(Object parent) {
+            return ((TreeItem)parent).children.size();
+        }
+
+        @Override
+        public boolean isLeaf(Object node) {
+            return ((TreeItem)node).children.isEmpty();
+        }
+
+        // This method is invoked by the JTree only for editable trees.
+        // This TreeModel does not allow editing, so we do not implement
+        // this method.  The JTree editable property is false by default.
+        @Override
+        public void valueForPathChanged(TreePath path, Object newValue) {
+            throw new UnsupportedOperationException("Not supported");
+        }
+
+        @Override
+        public int getIndexOfChild(Object parent, Object child) {
+            return ((TreeItem)parent).children.indexOf(child);
+        }
+
+        @Override
+        public void addTreeModelListener(TreeModelListener l) {
+//            // This model doesn't allow editing so listeners will never be called.
+            listeners.add(l);
+        }
+
+        @Override
+        public void removeTreeModelListener(TreeModelListener l) {
+//            // This model doesn't allow editing so listeners will never be called.
+            listeners.remove(l);
+        }
+
+        public void notifyTreeChanged() {
+            for (TreeModelListener l : listeners) {
+                l.treeStructureChanged(new TreeModelEvent(this, new Object[]{root}));
+            }
+        }
+
+    }
+
+
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu editMenu;
     private javax.swing.JMenu fileMenu;
-    private javax.swing.JList<String> folderList;
-    private javax.swing.JScrollPane folderListScrollPane;
+    private javax.swing.JTree folderTree;
+    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSplitPane jSplitPane1;
     private javax.swing.JMenuBar mainMenuBar;
     private javax.swing.JMenuItem menuItemPreferences;
