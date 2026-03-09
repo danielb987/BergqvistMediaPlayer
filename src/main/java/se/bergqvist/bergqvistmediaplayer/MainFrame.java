@@ -37,7 +37,6 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
-        folderList.setFont(folderList.getFont().deriveFont(22f));
         movieList.setFont(movieList.getFont().deriveFont(22f));
         jSplitPane1.setDividerLocation(0.6);
         jSplitPane1.setResizeWeight(0.6);
@@ -60,18 +59,6 @@ public class MainFrame extends javax.swing.JFrame {
     }
 
     private void loadMovies() {
-        ListSelectionListener folderSelectionListener = (ListSelectionEvent evt) -> {
-            if(!evt.getValueIsAdjusting()) {
-                System.out.format("Folder: %s%n", folderList.getSelectedValue());
-                movieModel.clear();
-                List<Path> movies = new ArrayList<>(foldersAndMovies.get(folderList.getSelectedValue()));
-                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
-                for (Path p : movies) {
-                    movieModel.addElement(new MovieItem(p));
-                }
-            }
-        };
-        folderList.addListSelectionListener(folderSelectionListener);
         var mainFolders = SystemProperties.get().getMainFolders();
 
         ListSelectionListener movieSelectionListener = (ListSelectionEvent evt) -> {
@@ -181,8 +168,6 @@ public class MainFrame extends javax.swing.JFrame {
         folderTree = new javax.swing.JTree();
         movieListScrollPane = new javax.swing.JScrollPane();
         movieList = new JList(movieModel);
-        folderListScrollPane = new javax.swing.JScrollPane();
-        folderList = new JList(folderModel);
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenu = new javax.swing.JMenu();
         menuItemQuit = new javax.swing.JMenuItem();
@@ -202,8 +187,6 @@ public class MainFrame extends javax.swing.JFrame {
         movieListScrollPane.setViewportView(movieList);
 
         jSplitPane1.setRightComponent(movieListScrollPane);
-
-        folderListScrollPane.setViewportView(folderList);
 
         fileMenu.setText("File");
 
@@ -231,15 +214,10 @@ public class MainFrame extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 799, Short.MAX_VALUE)
-            .addComponent(folderListScrollPane, javax.swing.GroupLayout.Alignment.TRAILING)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 362, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(folderListScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 143, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 517, Short.MAX_VALUE)
         );
 
         pack();
@@ -390,8 +368,6 @@ public class MainFrame extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenu editMenu;
     private javax.swing.JMenu fileMenu;
-    private javax.swing.JList<String> folderList;
-    private javax.swing.JScrollPane folderListScrollPane;
     private javax.swing.JTree folderTree;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JSplitPane jSplitPane1;
