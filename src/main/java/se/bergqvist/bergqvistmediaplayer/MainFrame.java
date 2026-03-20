@@ -1,5 +1,7 @@
 package se.bergqvist.bergqvistmediaplayer;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +39,20 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
+
+        movieList.addMouseListener(new MouseAdapter() {
+            int lastSelectedIndex;
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int index = movieList.locationToIndex(e.getPoint());
+                if (index != -1 && index == lastSelectedIndex) {
+                    movieList.clearSelection();
+                    movieList.setSelectedIndex(index);
+                }
+                lastSelectedIndex = movieList.getSelectedIndex();
+            }
+        });
+
         folderTree.setFont(folderTree.getFont().deriveFont(22f));
         movieList.setFont(movieList.getFont().deriveFont(22f));
         jSplitPane1.setDividerLocation(0.4);
