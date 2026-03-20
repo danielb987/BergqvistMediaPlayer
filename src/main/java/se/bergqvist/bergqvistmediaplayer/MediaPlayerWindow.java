@@ -295,11 +295,38 @@ public class MediaPlayerWindow {
         });
         controlsPane.add(loadButton);
 */
+        JButton stopButton = new JButton("Stop");
+        stopButton.addActionListener(e -> {
+            mediaPlayerComponent.mediaPlayer().submit(() -> {
+                store(f);
+                // Release mediaPlayerComponent.
+                mediaPlayerComponent.mediaPlayer().controls().pause();
+                mediaPlayerComponent.release();
+                System.out.println("Exit BergqvistMediaPlayer");
+                SwingUtilities.invokeLater(frame::dispose);
+            });
+        });
+        controlsPane.add(stopButton);
+
         JButton pauseButton = new JButton("Pause");
         pauseButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
         });
         controlsPane.add(pauseButton);
+
+        JButton rewindAllButton = new JButton("Rewind all");
+        rewindAllButton.addActionListener(e -> {
+//            mediaPlayer.controls().skipTime(-10000);
+            mediaPlayer.controls().setTime(0);
+        });
+        controlsPane.add(rewindAllButton);
+
+        JButton rewind10Button = new JButton("Rewind x10");
+        rewind10Button.addActionListener(e -> {
+//            mediaPlayer.controls().skipTime(-10000);
+            mediaPlayer.controls().skipTime(-1000*10);
+        });
+        controlsPane.add(rewind10Button);
 
         JButton rewindButton = new JButton("Rewind");
         rewindButton.addActionListener(e -> {
@@ -314,6 +341,13 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(1000);
         });
         controlsPane.add(skipButton);
+
+        JButton skip10Button = new JButton("Skip x10");
+        skip10Button.addActionListener(e -> {
+//            mediaPlayer.controls().skipTime(10000);
+            mediaPlayer.controls().skipTime(1000*10);
+        });
+        controlsPane.add(skip10Button);
 
 
         for (var entry : bookmarkLabels.entrySet()) {
