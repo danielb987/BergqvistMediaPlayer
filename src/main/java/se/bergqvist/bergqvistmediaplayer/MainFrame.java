@@ -12,8 +12,8 @@ import javax.swing.DefaultListModel;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JTree;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
+// import javax.swing.event.ListSelectionEvent;
+// import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
@@ -43,15 +43,15 @@ public class MainFrame extends javax.swing.JFrame {
         initComponents();
 
         movieList.addMouseListener(new MouseAdapter() {
-            int lastSelectedIndex;
             @Override
             public void mouseClicked(MouseEvent e) {
                 int index = movieList.locationToIndex(e.getPoint());
-                if (index != -1 && index == lastSelectedIndex) {
-                    movieList.clearSelection();
-                    movieList.setSelectedIndex(index);
+
+                if (index != -1) {
+                    Path movie = movieList.getSelectedValue().getMovie();
+                    System.out.format("Movie: %s%n", movie);
+                    mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
                 }
-                lastSelectedIndex = movieList.getSelectedIndex();
             }
         });
 
@@ -79,15 +79,6 @@ public class MainFrame extends javax.swing.JFrame {
 
     private void loadMovies() {
         var mainFolders = SystemProperties.get().getMainFolders();
-
-        ListSelectionListener movieSelectionListener = (ListSelectionEvent evt) -> {
-            if(!evt.getValueIsAdjusting() && movieList.getSelectedValue() != null) {
-                Path movie = movieList.getSelectedValue().getMovie();
-                System.out.format("Movie: %s%n", movie);
-                mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
-            }
-        };
-        movieList.addListSelectionListener(movieSelectionListener);
 
         try {
             Set<String> validExtensions = new HashSet<>();
