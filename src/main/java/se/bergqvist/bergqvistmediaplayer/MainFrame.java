@@ -27,6 +27,8 @@ import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
  */
 public class MainFrame extends javax.swing.JFrame {
 
+    private MediaPlayerWindow mediaPlayerWindow;
+
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final MyTreeModel folderTreeModel = new MyTreeModel();
     private final DefaultListModel folderModel = new DefaultListModel();
@@ -82,7 +84,7 @@ public class MainFrame extends javax.swing.JFrame {
             if(!evt.getValueIsAdjusting() && movieList.getSelectedValue() != null) {
                 Path movie = movieList.getSelectedValue().getMovie();
                 System.out.format("Movie: %s%n", movie);
-                MediaPlayerWindow mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
+                mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
             }
         };
         movieList.addListSelectionListener(movieSelectionListener);
