@@ -19,6 +19,8 @@ import java.util.TreeMap;
  */
 public class SystemProperties {
 
+    public static final String SETTINGS_FOLDER = "/BergqvistMediaPlayer/";
+
     public static final SystemProperties get() {
         return INSTANCE;
     }
@@ -32,7 +34,7 @@ public class SystemProperties {
 //    private final Properties movieProperties = new Properties();
 
     private SystemProperties() {
-        File settingsFile = new File("/BergqvistMediaPlayer/settings.bergqvist");
+        File settingsFile = new File(SETTINGS_FOLDER + "settings.bergqvist");
         sysProp = new Properties();
         if (!settingsFile.exists()) {
             System.out.format("Settings file doesn't exists: %s%n", settingsFile.getAbsolutePath());

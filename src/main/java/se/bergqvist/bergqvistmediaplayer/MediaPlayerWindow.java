@@ -1,37 +1,19 @@
 package se.bergqvist.bergqvistmediaplayer;
 
-import java.awt.BorderLayout;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.event.ActionEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
+import javax.swing.border.BevelBorder;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
+import uk.co.caprica.vlcj.player.base.State;
 import uk.co.caprica.vlcj.player.base.TrackDescription;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
@@ -93,12 +75,44 @@ public class MediaPlayerWindow {
 
     private void closeWindow(File f) {
         mediaPlayerComponent.mediaPlayer().submit(() -> {
+            AtomicReference<JFrame> stopMovieFrameRef = new AtomicReference<>();
+            try {
+                SwingUtilities.invokeAndWait(() -> {
+                    JFrame stopMovieFrame = new JFrame();
+                    stopMovieFrame.setUndecorated(true);
+                    stopMovieFrame.getRootPane().setWindowDecorationStyle(JRootPane.FRAME);
+                    JLabel label = new JLabel("The movie is stopped");
+                    label.setFont(label.getFont().deriveFont(46f));
+                    label.setBorder(
+                            BorderFactory.createCompoundBorder(
+                                    BorderFactory.createBevelBorder(
+                                            BevelBorder.RAISED, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY),
+                                    BorderFactory.createCompoundBorder(
+                                            BorderFactory.createBevelBorder(
+                                                    BevelBorder.RAISED, Color.BLACK, Color.BLACK, Color.BLACK, Color.BLACK),
+                                            BorderFactory.createEmptyBorder(10, 10, 10, 10))));
+                    stopMovieFrame.getContentPane().add(label);
+                    stopMovieFrame.pack();
+                    stopMovieFrame.setLocationRelativeTo(null);
+                    stopMovieFrame.setVisible(true);
+                    stopMovieFrameRef.set(stopMovieFrame);
+                });
+            } catch (InterruptedException | InvocationTargetException e) {
+                ErrorHandler.showErrorAndExit(e);
+            }
+
             store(f);
             // Release mediaPlayerComponent.
-            mediaPlayerComponent.mediaPlayer().controls().pause();
+            if (mediaPlayerComponent.mediaPlayer().media().info().state() == State.PLAYING) {
+                mediaPlayerComponent.mediaPlayer().controls().pause();
+            }
             mediaPlayerComponent.release();
             System.out.println("Exit BergqvistMediaPlayer");
-            SwingUtilities.invokeLater(frame::dispose);
+            SwingUtilities.invokeLater(() -> {
+                stopMovieFrameRef.get().dispose();
+                frame.dispose();
+            });
+//            SwingUtilities.invokeLater(frame::dispose);
         });
     }
 
@@ -306,12 +320,14 @@ public class MediaPlayerWindow {
                 SwingUtilities.invokeLater(frame::dispose);
             });
         });
+        stopButton.setFocusable(false);
         controlsPane.add(stopButton);
 
         JButton pauseButton = new JButton("Pause");
         pauseButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
         });
+        pauseButton.setFocusable(false);
         controlsPane.add(pauseButton);
 
         JButton rewindAllButton = new JButton("Rewind all");
@@ -319,6 +335,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().setTime(0);
         });
+        rewindAllButton.setFocusable(false);
         controlsPane.add(rewindAllButton);
 
         JButton rewind10Button = new JButton("Rewind x10");
@@ -326,6 +343,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000*10);
         });
+        rewind10Button.setFocusable(false);
         controlsPane.add(rewind10Button);
 
         JButton rewindButton = new JButton("Rewind");
@@ -333,6 +351,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000);
         });
+        rewindButton.setFocusable(false);
         controlsPane.add(rewindButton);
 
         JButton skipButton = new JButton("Skip");
@@ -340,6 +359,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000);
         });
+        skipButton.setFocusable(false);
         controlsPane.add(skipButton);
 
         JButton skip10Button = new JButton("Skip x10");
@@ -347,6 +367,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000*10);
         });
+        skip10Button.setFocusable(false);
         controlsPane.add(skip10Button);
 
 
@@ -419,6 +440,19 @@ public class MediaPlayerWindow {
         };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
         frame.getRootPane().getActionMap().put("F2", f2Action);
+
+        KeyStroke spaceKeyStroke = KeyStroke.getKeyStroke("SPACE");
+        Action spaceAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.submit(() -> {
+                    mediaPlayerComponent.mediaPlayer().controls().pause();
+                });
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(spaceKeyStroke, "SPACE");
+        frame.getRootPane().getActionMap().put("SPACE", spaceAction);
 /*
         KeyStroke escapeKeyStroke = KeyStroke.getKeyStroke("ESCAPE");
         Action escapeAction = new AbstractAction() {
