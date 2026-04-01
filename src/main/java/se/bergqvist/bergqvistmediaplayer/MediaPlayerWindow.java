@@ -309,12 +309,14 @@ public class MediaPlayerWindow {
                 SwingUtilities.invokeLater(frame::dispose);
             });
         });
+        stopButton.setFocusable(false);
         controlsPane.add(stopButton);
 
         JButton pauseButton = new JButton("Pause");
         pauseButton.addActionListener(e -> {
             mediaPlayer.controls().pause();
         });
+        pauseButton.setFocusable(false);
         controlsPane.add(pauseButton);
 
         JButton rewindAllButton = new JButton("Rewind all");
@@ -322,6 +324,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().setTime(0);
         });
+        rewindAllButton.setFocusable(false);
         controlsPane.add(rewindAllButton);
 
         JButton rewind10Button = new JButton("Rewind x10");
@@ -329,6 +332,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000*10);
         });
+        rewind10Button.setFocusable(false);
         controlsPane.add(rewind10Button);
 
         JButton rewindButton = new JButton("Rewind");
@@ -336,6 +340,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000);
         });
+        rewindButton.setFocusable(false);
         controlsPane.add(rewindButton);
 
         JButton skipButton = new JButton("Skip");
@@ -343,6 +348,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000);
         });
+        skipButton.setFocusable(false);
         controlsPane.add(skipButton);
 
         JButton skip10Button = new JButton("Skip x10");
@@ -350,6 +356,7 @@ public class MediaPlayerWindow {
 //            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000*10);
         });
+        skip10Button.setFocusable(false);
         controlsPane.add(skip10Button);
 
 
@@ -422,6 +429,19 @@ public class MediaPlayerWindow {
         };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
         frame.getRootPane().getActionMap().put("F2", f2Action);
+
+        KeyStroke spaceKeyStroke = KeyStroke.getKeyStroke("SPACE");
+        Action spaceAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.submit(() -> {
+                    mediaPlayerComponent.mediaPlayer().controls().pause();
+                });
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(spaceKeyStroke, "SPACE");
+        frame.getRootPane().getActionMap().put("SPACE", spaceAction);
 /*
         KeyStroke escapeKeyStroke = KeyStroke.getKeyStroke("ESCAPE");
         Action escapeAction = new AbstractAction() {
