@@ -32,6 +32,7 @@ import javax.swing.SwingUtilities;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
+import uk.co.caprica.vlcj.player.base.State;
 import uk.co.caprica.vlcj.player.base.TrackDescription;
 import uk.co.caprica.vlcj.player.component.EmbeddedMediaPlayerComponent;
 
@@ -95,7 +96,9 @@ public class MediaPlayerWindow {
         mediaPlayerComponent.mediaPlayer().submit(() -> {
             store(f);
             // Release mediaPlayerComponent.
-            mediaPlayerComponent.mediaPlayer().controls().pause();
+            if (mediaPlayerComponent.mediaPlayer().media().info().state() == State.PLAYING) {
+                mediaPlayerComponent.mediaPlayer().controls().pause();
+            }
             mediaPlayerComponent.release();
             System.out.println("Exit BergqvistMediaPlayer");
             SwingUtilities.invokeLater(frame::dispose);
