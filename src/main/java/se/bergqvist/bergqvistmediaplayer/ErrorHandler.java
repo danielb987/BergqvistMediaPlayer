@@ -21,8 +21,7 @@ public class ErrorHandler implements Thread.UncaughtExceptionHandler {
     private ErrorHandler() {
     }
 
-    @Override
-    public void uncaughtException(Thread t, Throwable e) {
+    public static void showErrorAndExit(Throwable e) {
         String fileName = SystemProperties.SETTINGS_FOLDER + "error.log";
         try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(fileName, true)))) {
             LocalDateTime dateTime = LocalDateTime.now();
@@ -40,6 +39,11 @@ public class ErrorHandler implements Thread.UncaughtExceptionHandler {
             ex.printStackTrace();
         }
         System.exit(1);
+    }
+
+    @Override
+    public void uncaughtException(Thread t, Throwable e) {
+        showErrorAndExit(e);
     }
 
 }

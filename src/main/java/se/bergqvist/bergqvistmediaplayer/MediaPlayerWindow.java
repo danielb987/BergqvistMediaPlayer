@@ -1,34 +1,15 @@
 package se.bergqvist.bergqvistmediaplayer;
 
-import java.awt.BorderLayout;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.event.ActionEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.KeyStroke;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
+import javax.swing.border.BevelBorder;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -94,6 +75,32 @@ public class MediaPlayerWindow {
 
     private void closeWindow(File f) {
         mediaPlayerComponent.mediaPlayer().submit(() -> {
+            AtomicReference<JFrame> stopMovieFrameRef = new AtomicReference<>();
+            try {
+                SwingUtilities.invokeAndWait(() -> {
+                    JFrame stopMovieFrame = new JFrame();
+                    stopMovieFrame.setUndecorated(true);
+                    stopMovieFrame.getRootPane().setWindowDecorationStyle(JRootPane.FRAME);
+                    JLabel label = new JLabel("The movie is stopped");
+                    label.setFont(label.getFont().deriveFont(46f));
+                    label.setBorder(
+                            BorderFactory.createCompoundBorder(
+                                    BorderFactory.createBevelBorder(
+                                            BevelBorder.RAISED, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY),
+                                    BorderFactory.createCompoundBorder(
+                                            BorderFactory.createBevelBorder(
+                                                    BevelBorder.RAISED, Color.BLACK, Color.BLACK, Color.BLACK, Color.BLACK),
+                                            BorderFactory.createEmptyBorder(10, 10, 10, 10))));
+                    stopMovieFrame.getContentPane().add(label);
+                    stopMovieFrame.pack();
+                    stopMovieFrame.setLocationRelativeTo(null);
+                    stopMovieFrame.setVisible(true);
+                    stopMovieFrameRef.set(stopMovieFrame);
+                });
+            } catch (InterruptedException | InvocationTargetException e) {
+                ErrorHandler.showErrorAndExit(e);
+            }
+
             store(f);
             // Release mediaPlayerComponent.
             if (mediaPlayerComponent.mediaPlayer().media().info().state() == State.PLAYING) {
@@ -101,7 +108,11 @@ public class MediaPlayerWindow {
             }
             mediaPlayerComponent.release();
             System.out.println("Exit BergqvistMediaPlayer");
-            SwingUtilities.invokeLater(frame::dispose);
+            SwingUtilities.invokeLater(() -> {
+                stopMovieFrameRef.get().dispose();
+                frame.dispose();
+            });
+//            SwingUtilities.invokeLater(frame::dispose);
         });
     }
 
