@@ -34,6 +34,7 @@ public class MediaPlayerWindow {
     private final Properties movieProperties = new Properties();
 
     private boolean showSubtitles = true;
+    private int selectedSubtitle = Integer.MIN_VALUE;
 
 
     private void load(File f) {
@@ -41,6 +42,14 @@ public class MediaPlayerWindow {
         if (propFile.exists()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(propFile, StandardCharsets.UTF_8))) {
                 movieProperties.load(reader);
+                String selectedSubtitleStr = movieProperties.getProperty("SelectedSubtitle");
+                if (selectedSubtitleStr != null) {
+                    try {
+                        selectedSubtitle = Integer.parseInt(selectedSubtitleStr);
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
                 loadBookmarks();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -67,6 +76,9 @@ public class MediaPlayerWindow {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(propFile, StandardCharsets.UTF_8))) {
             long time = mediaPlayerComponent.mediaPlayer().status().time();
             movieProperties.setProperty("Time", Long.toString(time));
+            if (selectedSubtitle != Integer.MIN_VALUE) {
+                movieProperties.setProperty("SelectedSubtitle", Integer.toString(selectedSubtitle));
+            }
             movieProperties.store(writer, f.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
@@ -117,16 +129,26 @@ public class MediaPlayerWindow {
     }
 
     private void showOrHideSubtitles() {
+        showOrHideSubtitles(!showSubtitles);
+    }
+
+    private void showOrHideSubtitles(boolean show) {
         MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
 
-        showSubtitles = !showSubtitles;
+        showSubtitles = show;
 
         if (showSubtitles) {
             // Enable subtitles
-            List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
-            for (var track : tracks) {
-                if (track.id() != -1) {
-                    mediaPlayer.subpictures().setTrack(track.id());
+            if (selectedSubtitle != Integer.MIN_VALUE) {
+                mediaPlayer.subpictures().setTrack(selectedSubtitle);
+            } else {
+                List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                for (var track : tracks) {
+                    System.out.format("track %d: %s%n", track.id(), track.description());
+                    if (track.id() != -1) {
+                        selectedSubtitle = track.id();
+                        mediaPlayer.subpictures().setTrack(track.id());
+                    }
                 }
             }
         } else {
@@ -137,6 +159,7 @@ public class MediaPlayerWindow {
 
     public MediaPlayerWindow(File f) {
         AtomicReference<File> fileRef = new AtomicReference<>(f);
+        JPanel subtitlesPane = new JPanel();
 
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
@@ -247,6 +270,28 @@ public class MediaPlayerWindow {
                     @Override
                     public void titleChanged(MediaPlayer mediaPlayer, int newTitle) {
 //                        System.out.format(":: Title changed: %s%n", newTitle);
+
+                        subtitlesPane.removeAll();
+
+                        List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                        for (var track : tracks) {
+                            JButton subtitleButton = new JButton(track.description());
+                            subtitleButton.addActionListener(e -> {
+                                mediaPlayerComponent.mediaPlayer().submit(() -> {
+                                    selectedSubtitle = track.id();
+                                    mediaPlayer.subpictures().setTrack(track.id());
+                                    showOrHideSubtitles(true);
+                                });
+                            });
+                            subtitleButton.setFocusable(false);
+                            subtitlesPane.add(subtitleButton);
+                            frame.pack();
+                        }
+
+                        // Ensure the desired subtitle is selected
+                        if (selectedSubtitle != Integer.MIN_VALUE) {
+                            mediaPlayer.subpictures().setTrack(selectedSubtitle);
+                        }
                     }
 
                     @Override
@@ -269,7 +314,11 @@ public class MediaPlayerWindow {
 
                     @Override
                     public void mediaPlayerReady(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: MediaPlayerReady%n");
+                        System.out.format(":: MediaPlayerReady%n");
+                        List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                        for (var track : tracks) {
+                            System.out.format("track %d: %s%n", track.id(), track.description());
+                        }
 /*
                         // Hide subtitles
                         List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
@@ -290,6 +339,12 @@ public class MediaPlayerWindow {
 */
                     }
                 });
+
+        JPanel southPanels = new JPanel();
+        southPanels.setLayout(new BoxLayout(southPanels, BoxLayout.Y_AXIS));
+
+        subtitlesPane.setVisible(false);
+        southPanels.add(subtitlesPane);
 
         JPanel controlsPane = new JPanel();
         controlsPane.setVisible(false);
@@ -390,7 +445,9 @@ public class MediaPlayerWindow {
         });
         controlsPane.add(slider);
 
-        contentPane.add(controlsPane, BorderLayout.SOUTH);
+        southPanels.add(controlsPane);
+
+        contentPane.add(southPanels, BorderLayout.SOUTH);
 
         frame.setContentPane(contentPane);
         frame.setVisible(true);
@@ -417,6 +474,72 @@ public class MediaPlayerWindow {
 
 //        KeyStroke enterKeyStroke = KeyStroke.getKeyStroke("ENTER");
 
+        KeyStroke leftKeyStroke = KeyStroke.getKeyStroke("LEFT");
+        Action leftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*1);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(leftKeyStroke, "LEFT");
+        frame.getRootPane().getActionMap().put("LEFT", leftAction);
+
+        KeyStroke shiftLeftKeyStroke = KeyStroke.getKeyStroke("shift LEFT");
+        Action shiftLeftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*10);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftLeftKeyStroke, "shift LEFT");
+        frame.getRootPane().getActionMap().put("shift LEFT", shiftLeftAction);
+
+        KeyStroke ctrlLeftKeyStroke = KeyStroke.getKeyStroke("control LEFT");
+        Action ctrlLeftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*100);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ctrlLeftKeyStroke, "control LEFT");
+        frame.getRootPane().getActionMap().put("control LEFT", ctrlLeftAction);
+
+        KeyStroke rightKeyStroke = KeyStroke.getKeyStroke("RIGHT");
+        Action rightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*1);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(rightKeyStroke, "RIGHT");
+        frame.getRootPane().getActionMap().put("RIGHT", rightAction);
+
+        KeyStroke shiftRightKeyStroke = KeyStroke.getKeyStroke("shift RIGHT");
+        Action shiftRightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*10);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftRightKeyStroke, "shift RIGHT");
+        frame.getRootPane().getActionMap().put("shift RIGHT", shiftRightAction);
+
+        KeyStroke ctrlRightKeyStroke = KeyStroke.getKeyStroke("control RIGHT");
+        Action ctrlRightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*100);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ctrlRightKeyStroke, "control RIGHT");
+        frame.getRootPane().getActionMap().put("control RIGHT", ctrlRightAction);
+
         KeyStroke f1KeyStroke = KeyStroke.getKeyStroke("F1");
         Action f1Action = new AbstractAction() {
             @Override
@@ -440,6 +563,17 @@ public class MediaPlayerWindow {
         };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
         frame.getRootPane().getActionMap().put("F2", f2Action);
+
+        KeyStroke f3KeyStroke = KeyStroke.getKeyStroke("F3");
+        Action f3Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                subtitlesPane.setVisible(!subtitlesPane.isVisible());
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f3KeyStroke, "F3");
+        frame.getRootPane().getActionMap().put("F3", f3Action);
 
         KeyStroke spaceKeyStroke = KeyStroke.getKeyStroke("SPACE");
         Action spaceAction = new AbstractAction() {
