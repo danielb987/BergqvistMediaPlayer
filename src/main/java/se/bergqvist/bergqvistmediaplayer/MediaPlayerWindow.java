@@ -33,6 +33,8 @@ public class MediaPlayerWindow {
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
     private final Properties movieProperties = new Properties();
 
+    private int selectedAudio = Integer.MIN_VALUE;
+
     private boolean showSubtitles = true;
     private int selectedSubtitle = Integer.MIN_VALUE;
 
@@ -42,6 +44,14 @@ public class MediaPlayerWindow {
         if (propFile.exists()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(propFile, StandardCharsets.UTF_8))) {
                 movieProperties.load(reader);
+                String selectedAudioStr = movieProperties.getProperty("SelectedAudio");
+                if (selectedAudioStr != null) {
+                    try {
+                        selectedAudio = Integer.parseInt(selectedAudioStr);
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
                 String selectedSubtitleStr = movieProperties.getProperty("SelectedSubtitle");
                 if (selectedSubtitleStr != null) {
                     try {
@@ -76,6 +86,9 @@ public class MediaPlayerWindow {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(propFile, StandardCharsets.UTF_8))) {
             long time = mediaPlayerComponent.mediaPlayer().status().time();
             movieProperties.setProperty("Time", Long.toString(time));
+            if (selectedAudio != Integer.MIN_VALUE) {
+                movieProperties.setProperty("SelectedAudio", Integer.toString(selectedAudio));
+            }
             if (selectedSubtitle != Integer.MIN_VALUE) {
                 movieProperties.setProperty("SelectedSubtitle", Integer.toString(selectedSubtitle));
             }
@@ -159,6 +172,7 @@ public class MediaPlayerWindow {
 
     public MediaPlayerWindow(File f) {
         AtomicReference<File> fileRef = new AtomicReference<>(f);
+        JPanel audioPane = new JPanel();
         JPanel subtitlesPane = new JPanel();
 
         JSlider slider = new JSlider(0,1000);
@@ -270,10 +284,39 @@ public class MediaPlayerWindow {
                     @Override
                     public void titleChanged(MediaPlayer mediaPlayer, int newTitle) {
 //                        System.out.format(":: Title changed: %s%n", newTitle);
+/*
+                        List<TrackDescription> tracks = mediaPlayer.audio().trackDescriptions();
+                        for (var track : tracks) {
+                            System.out.format("ID: %d, descr: %s%n", track.id(), track.description());
+                        }
+*/
+
+                        audioPane.removeAll();
+
+//                        List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                        List<TrackDescription> tracks = mediaPlayer.audio().trackDescriptions();
+                        for (var track : tracks) {
+                            JButton audioButton = new JButton(track.description());
+                            audioButton.addActionListener(e -> {
+                                mediaPlayerComponent.mediaPlayer().submit(() -> {
+                                    selectedAudio = track.id();
+                                    mediaPlayer.audio().setTrack(track.id());
+                                });
+                            });
+                            audioButton.setFocusable(false);
+                            audioPane.add(audioButton);
+                            frame.pack();
+                        }
+
+                        // Ensure the desired audio is selected
+                        if (selectedAudio != Integer.MIN_VALUE) {
+                            mediaPlayer.audio().setTrack(selectedAudio);
+                        }
+
 
                         subtitlesPane.removeAll();
 
-                        List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                        tracks = mediaPlayer.subpictures().trackDescriptions();
                         for (var track : tracks) {
                             JButton subtitleButton = new JButton(track.description());
                             subtitleButton.addActionListener(e -> {
@@ -342,6 +385,9 @@ public class MediaPlayerWindow {
 
         JPanel southPanels = new JPanel();
         southPanels.setLayout(new BoxLayout(southPanels, BoxLayout.Y_AXIS));
+
+        audioPane.setVisible(false);
+        southPanels.add(audioPane);
 
         subtitlesPane.setVisible(false);
         southPanels.add(subtitlesPane);
@@ -551,14 +597,25 @@ public class MediaPlayerWindow {
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f1KeyStroke, "F1");
         frame.getRootPane().getActionMap().put("F1", f1Action);
 
-        KeyStroke f2KeyStroke = KeyStroke.getKeyStroke("F2");
-        Action f2Action = new AbstractAction() {
+        KeyStroke shiftF2KeyStroke = KeyStroke.getKeyStroke("shift F2");
+        Action shiftF2Action = new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e)
             {
                 mediaPlayer.submit(() -> {
                     showOrHideSubtitles();
                 });
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftF2KeyStroke, "shift F2");
+        frame.getRootPane().getActionMap().put("shift F2", shiftF2Action);
+
+        KeyStroke f2KeyStroke = KeyStroke.getKeyStroke("F2");
+        Action f2Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                subtitlesPane.setVisible(!subtitlesPane.isVisible());
             }
         };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
@@ -569,7 +626,7 @@ public class MediaPlayerWindow {
             @Override
             public void actionPerformed(ActionEvent e)
             {
-                subtitlesPane.setVisible(!subtitlesPane.isVisible());
+                audioPane.setVisible(!audioPane.isVisible());
             }
         };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f3KeyStroke, "F3");
