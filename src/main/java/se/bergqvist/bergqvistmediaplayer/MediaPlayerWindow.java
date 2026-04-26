@@ -482,7 +482,7 @@ public class MediaPlayerWindow {
         pauseButton.setFocusable(false);
         controlsPane.add(pauseButton);
 
-        JButton rewindAllButton = new JButton("Rewind all");
+        JButton rewindAllButton = new JButton("|<<");
         rewindAllButton.addActionListener(e -> {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().setTime(0);
@@ -490,37 +490,47 @@ public class MediaPlayerWindow {
         rewindAllButton.setFocusable(false);
         controlsPane.add(rewindAllButton);
 
-        JButton rewind10Button = new JButton("Rewind x10");
+        JButton rewind60Button = new JButton("<< 60");
+        rewind60Button.addActionListener(e -> {
+            mediaPlayer.controls().skipTime(-1000*10);
+        });
+        rewind60Button.setFocusable(false);
+        controlsPane.add(rewind60Button);
+
+        JButton rewind10Button = new JButton("<< 10");
         rewind10Button.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000*10);
         });
         rewind10Button.setFocusable(false);
         controlsPane.add(rewind10Button);
 
-        JButton rewindButton = new JButton("Rewind");
+        JButton rewindButton = new JButton("<<");
         rewindButton.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000);
         });
         rewindButton.setFocusable(false);
         controlsPane.add(rewindButton);
 
-        JButton skipButton = new JButton("Skip");
+        JButton skipButton = new JButton(">>");
         skipButton.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000);
         });
         skipButton.setFocusable(false);
         controlsPane.add(skipButton);
 
-        JButton skip10Button = new JButton("Skip x10");
+        JButton skip10Button = new JButton("10 >>");
         skip10Button.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000*10);
         });
         skip10Button.setFocusable(false);
         controlsPane.add(skip10Button);
+
+        JButton skip60Button = new JButton("60 >>");
+        skip60Button.addActionListener(e -> {
+            mediaPlayer.controls().skipTime(1000*60);
+        });
+        skip60Button.setFocusable(false);
+        controlsPane.add(skip60Button);
 
 
         for (var entry : bookmarkLabels.entrySet()) {
