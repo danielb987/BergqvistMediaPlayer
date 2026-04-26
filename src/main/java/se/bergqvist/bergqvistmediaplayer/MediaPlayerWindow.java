@@ -2,11 +2,13 @@ package se.bergqvist.bergqvistmediaplayer;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
+import java.util.Timer;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.*;
 import javax.swing.border.BevelBorder;
@@ -27,7 +29,11 @@ public class MediaPlayerWindow {
     private static final GraphicsDevice device = GraphicsEnvironment
             .getLocalGraphicsEnvironment().getScreenDevices()[0];
 
+    private final Object mouseCursorTimerLock = new Object();
     private final JFrame frame;
+    private final Cursor emptyCursor;
+    private final Timer mouseCursorTimer = new Timer("Mouse cursor timer");
+    private TimerTask mouseCursorTimerTask = null;
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final SortedMap<Integer, String> bookmarkLabels = new TreeMap<>();
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
@@ -170,6 +176,21 @@ public class MediaPlayerWindow {
         }
     }
 
+    private void startMouseCursorTimerTask() {
+        synchronized(mouseCursorTimerLock) {
+            if (mouseCursorTimerTask != null) {
+                mouseCursorTimerTask.cancel();
+            }
+            mouseCursorTimerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    mediaPlayerComponent.setCursor(emptyCursor);
+                }
+            };
+            mouseCursorTimer.schedule(mouseCursorTimerTask, 2000);
+        }
+    }
+
     public MediaPlayerWindow(File f) {
         AtomicReference<File> fileRef = new AtomicReference<>(f);
         JPanel audioPane = new JPanel();
@@ -181,7 +202,6 @@ public class MediaPlayerWindow {
         load(fileRef.get());
 
         frame = new JFrame("My First Media Player");
-
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -200,8 +220,30 @@ public class MediaPlayerWindow {
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout());
 
+
+        // Hide mouse cursor
+        emptyCursor = frame.getToolkit().createCustomCursor(
+                new BufferedImage( 1, 1, BufferedImage.TYPE_INT_ARGB ),
+                new Point(),
+                null );
+
 //        System.out.format("Load MediaPlayerComponent%n");
-        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+        mediaPlayerComponent = new EmbeddedMediaPlayerComponent() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                mediaPlayerComponent.setCursor(Cursor.getDefaultCursor());
+                startMouseCursorTimerTask();
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                mediaPlayerComponent.setCursor(Cursor.getDefaultCursor());
+                startMouseCursorTimerTask();
+            }
+        };
+
+        mediaPlayerComponent.setCursor(emptyCursor);
+
         MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
 
