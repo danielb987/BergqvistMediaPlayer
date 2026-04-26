@@ -193,6 +193,8 @@ public class MediaPlayerWindow {
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
 
+        JLabel positionLabel = new JLabel();
+
         load(fileRef.get());
 
         frame = new JFrame("My First Media Player");
@@ -302,6 +304,19 @@ public class MediaPlayerWindow {
                             slider.setEnabled(false);
                             slider.setValue((int) (newTime/1000));
                             slider.setEnabled(true);
+
+                            int secNow = (int) (newTime/1000);
+                            int minNow = secNow/60;
+                            int hourNow = minNow/60;
+
+                            int secTot = slider.getMaximum();
+                            int minTot = secTot/60;
+                            int hourTot = minTot/60;
+
+                            positionLabel.setText(String.format(
+                                    "%d:%02d:%02d / %d:%02d:%02d",
+                                    hourNow, minNow % 60, secNow % 60,
+                                    hourTot, minTot % 60, secTot % 60));
                         });
                     }
 
@@ -524,6 +539,10 @@ public class MediaPlayerWindow {
             }
         });
         controlsPane.add(slider);
+
+
+        controlsPane.add(positionLabel);
+
 
         southPanels.add(controlsPane);
 
