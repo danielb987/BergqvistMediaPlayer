@@ -50,7 +50,7 @@ public class MainFrame extends javax.swing.JFrame {
                 if (index != -1) {
                     Path movie = movieList.getSelectedValue().getMovie();
                     System.out.format("Movie: %s%n", movie);
-                    mediaPlayerWindow = new MediaPlayerWindow(movie.toFile());
+                    mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.toFile());
                 }
             }
         });

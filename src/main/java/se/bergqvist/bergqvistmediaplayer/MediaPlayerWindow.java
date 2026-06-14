@@ -2,14 +2,15 @@ package se.bergqvist.bergqvistmediaplayer;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
+import java.util.Timer;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.*;
-import javax.swing.border.BevelBorder;
 import uk.co.caprica.vlcj.media.MediaRef;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
@@ -27,13 +28,21 @@ public class MediaPlayerWindow {
     private static final GraphicsDevice device = GraphicsEnvironment
             .getLocalGraphicsEnvironment().getScreenDevices()[0];
 
+    private final JFrame parentFrame;
+    private final Object mouseCursorTimerLock = new Object();
     private final JFrame frame;
+    private final Cursor emptyCursor;
+    private final Timer mouseCursorTimer = new Timer("Mouse cursor timer");
+    private TimerTask mouseCursorTimerTask = null;
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
     private final SortedMap<Integer, String> bookmarkLabels = new TreeMap<>();
     private final Map<Integer, Long> bookmarkTimes = new HashMap<>();
     private final Properties movieProperties = new Properties();
 
+    private int selectedAudio = Integer.MIN_VALUE;
+
     private boolean showSubtitles = true;
+    private int selectedSubtitle = Integer.MIN_VALUE;
 
 
     private void load(File f) {
@@ -41,6 +50,22 @@ public class MediaPlayerWindow {
         if (propFile.exists()) {
             try (BufferedReader reader = new BufferedReader(new FileReader(propFile, StandardCharsets.UTF_8))) {
                 movieProperties.load(reader);
+                String selectedAudioStr = movieProperties.getProperty("SelectedAudio");
+                if (selectedAudioStr != null) {
+                    try {
+                        selectedAudio = Integer.parseInt(selectedAudioStr);
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
+                String selectedSubtitleStr = movieProperties.getProperty("SelectedSubtitle");
+                if (selectedSubtitleStr != null) {
+                    try {
+                        selectedSubtitle = Integer.parseInt(selectedSubtitleStr);
+                    } catch (NumberFormatException e) {
+                        e.printStackTrace();
+                    }
+                }
                 loadBookmarks();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -67,6 +92,12 @@ public class MediaPlayerWindow {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(propFile, StandardCharsets.UTF_8))) {
             long time = mediaPlayerComponent.mediaPlayer().status().time();
             movieProperties.setProperty("Time", Long.toString(time));
+            if (selectedAudio != Integer.MIN_VALUE) {
+                movieProperties.setProperty("SelectedAudio", Integer.toString(selectedAudio));
+            }
+            if (selectedSubtitle != Integer.MIN_VALUE) {
+                movieProperties.setProperty("SelectedSubtitle", Integer.toString(selectedSubtitle));
+            }
             movieProperties.store(writer, f.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
@@ -74,59 +105,43 @@ public class MediaPlayerWindow {
     }
 
     private void closeWindow(File f) {
-        mediaPlayerComponent.mediaPlayer().submit(() -> {
-            AtomicReference<JFrame> stopMovieFrameRef = new AtomicReference<>();
-            try {
-                SwingUtilities.invokeAndWait(() -> {
-                    JFrame stopMovieFrame = new JFrame();
-                    stopMovieFrame.setUndecorated(true);
-                    stopMovieFrame.getRootPane().setWindowDecorationStyle(JRootPane.FRAME);
-                    JLabel label = new JLabel("The movie is stopped");
-                    label.setFont(label.getFont().deriveFont(46f));
-                    label.setBorder(
-                            BorderFactory.createCompoundBorder(
-                                    BorderFactory.createBevelBorder(
-                                            BevelBorder.RAISED, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY, Color.LIGHT_GRAY),
-                                    BorderFactory.createCompoundBorder(
-                                            BorderFactory.createBevelBorder(
-                                                    BevelBorder.RAISED, Color.BLACK, Color.BLACK, Color.BLACK, Color.BLACK),
-                                            BorderFactory.createEmptyBorder(10, 10, 10, 10))));
-                    stopMovieFrame.getContentPane().add(label);
-                    stopMovieFrame.pack();
-                    stopMovieFrame.setLocationRelativeTo(null);
-                    stopMovieFrame.setVisible(true);
-                    stopMovieFrameRef.set(stopMovieFrame);
-                });
-            } catch (InterruptedException | InvocationTargetException e) {
-                ErrorHandler.showErrorAndExit(e);
-            }
+        store(f);
+        // Release mediaPlayerComponent.
+        if (mediaPlayerComponent.mediaPlayer().media().info().state() == State.PLAYING) {
+            mediaPlayerComponent.mediaPlayer().controls().pause();
+        }
+        mediaPlayerComponent.release();
 
-            store(f);
-            // Release mediaPlayerComponent.
-            if (mediaPlayerComponent.mediaPlayer().media().info().state() == State.PLAYING) {
-                mediaPlayerComponent.mediaPlayer().controls().pause();
-            }
-            mediaPlayerComponent.release();
-            System.out.println("Exit BergqvistMediaPlayer");
-            SwingUtilities.invokeLater(() -> {
-                stopMovieFrameRef.get().dispose();
-                frame.dispose();
-            });
-//            SwingUtilities.invokeLater(frame::dispose);
+        SwingUtilities.invokeLater(() -> {
+            frame.dispose();
+
+            // Try to give the parentFrame the focus
+            parentFrame.setVisible(true);
+            parentFrame.toFront();
+            parentFrame.requestFocus();
         });
     }
 
     private void showOrHideSubtitles() {
+        showOrHideSubtitles(!showSubtitles);
+    }
+
+    private void showOrHideSubtitles(boolean show) {
         MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
 
-        showSubtitles = !showSubtitles;
+        showSubtitles = show;
 
         if (showSubtitles) {
             // Enable subtitles
-            List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
-            for (var track : tracks) {
-                if (track.id() != -1) {
-                    mediaPlayer.subpictures().setTrack(track.id());
+            if (selectedSubtitle != Integer.MIN_VALUE) {
+                mediaPlayer.subpictures().setTrack(selectedSubtitle);
+            } else {
+                List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
+                for (var track : tracks) {
+                    if (track.id() != -1) {
+                        selectedSubtitle = track.id();
+                        mediaPlayer.subpictures().setTrack(track.id());
+                    }
                 }
             }
         } else {
@@ -135,16 +150,61 @@ public class MediaPlayerWindow {
         }
     }
 
-    public MediaPlayerWindow(File f) {
+    public static void runOnGUI(Runnable ta) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            // run now
+            ta.run();
+        } else {
+            // dispatch to Swing
+            try {
+                SwingUtilities.invokeAndWait(ta);
+            } catch (InterruptedException e) {
+                System.out.println("Interrupted while running on GUI thread");
+                Thread.currentThread().interrupt();
+            } catch (InvocationTargetException e) {
+                System.out.format("Error while on GUI thread: %s", e.getCause());
+                System.out.format("   Came from call to runOnGUI: %s", e);
+                e.printStackTrace();
+                // should have been handled inside the ThreadAction
+            }
+        }
+    }
+
+    public static void runOnGUIEventually(Runnable ta) {
+        // dispatch to Swing
+        SwingUtilities.invokeLater(ta);
+    }
+
+    private void startMouseCursorTimerTask() {
+        synchronized(mouseCursorTimerLock) {
+            if (mouseCursorTimerTask != null) {
+                mouseCursorTimerTask.cancel();
+            }
+            mouseCursorTimerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    mediaPlayerComponent.setCursor(emptyCursor);
+                }
+            };
+            mouseCursorTimer.schedule(mouseCursorTimerTask, 2000);
+        }
+    }
+
+    public MediaPlayerWindow(JFrame parentFrame, File f) {
+        this.parentFrame = parentFrame;
+
         AtomicReference<File> fileRef = new AtomicReference<>(f);
+        JPanel audioPane = new JPanel();
+        JPanel subtitlesPane = new JPanel();
 
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
 
+        JLabel positionLabel = new JLabel();
+
         load(fileRef.get());
 
         frame = new JFrame("My First Media Player");
-
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -163,8 +223,29 @@ public class MediaPlayerWindow {
         JPanel contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout());
 
-//        System.out.format("Load MediaPlayerComponent%n");
-        mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
+
+        // Hide mouse cursor
+        emptyCursor = frame.getToolkit().createCustomCursor(
+                new BufferedImage( 1, 1, BufferedImage.TYPE_INT_ARGB ),
+                new Point(),
+                null );
+
+        mediaPlayerComponent = new EmbeddedMediaPlayerComponent() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                mediaPlayerComponent.setCursor(Cursor.getDefaultCursor());
+                startMouseCursorTimerTask();
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                mediaPlayerComponent.setCursor(Cursor.getDefaultCursor());
+                startMouseCursorTimerTask();
+            }
+        };
+
+        mediaPlayerComponent.setCursor(emptyCursor);
+
         MediaPlayer mediaPlayer = mediaPlayerComponent.mediaPlayer();
         contentPane.add(mediaPlayerComponent, BorderLayout.CENTER);
 
@@ -173,142 +254,168 @@ public class MediaPlayerWindow {
 
                     @Override
                     public void mediaChanged(MediaPlayer mediaPlayer, MediaRef media) {
-//                        System.out.format(":: New media: %s%n", media.duplicateMedia().info().mrl());
                     }
 
                     @Override
                     public void opening(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Opening%n");
                     }
 
                     @Override
                     public void buffering(MediaPlayer mediaPlayer, float newCache) {
-//                        System.out.format(":: Buffering. New cache: %s%n", newCache);
                     }
 
                     @Override
                     public void playing(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Playing%n");
                     }
 
                     @Override
                     public void paused(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Paused%n");
                         store(fileRef.get());
                     }
 
                     @Override
                     public void stopped(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Stopped%n");
                         store(fileRef.get());
                     }
 
                     @Override
                     public void forward(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Forward%n");
                     }
 
                     @Override
                     public void backward(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Backward%n");
                     }
 
                     @Override
                     public void finished(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Finished%n");
+                        runOnGUIEventually(() -> {
+                            frame.dispose();
+                        });
                     }
 
                     @Override
                     public void timeChanged(MediaPlayer mediaPlayer, long newTime) {
-//                        System.out.format(":: New time: %s%n", newTime);
-//                        System.out.format(":: New time: %s%n", mediaPlayer.status().time());
-                        slider.setEnabled(false);
-//                        System.out.format("Set slider%n");
-                        slider.setValue((int) (newTime/1000));
-//                        System.out.format("Set slider done%n");
-                        slider.setEnabled(true);
+                        runOnGUIEventually(() -> {
+                            slider.setEnabled(false);
+                            slider.setValue((int) (newTime/1000));
+                            slider.setEnabled(true);
+
+                            int secNow = (int) (newTime/1000);
+                            int minNow = secNow/60;
+                            int hourNow = minNow/60;
+
+                            int secTot = slider.getMaximum();
+                            int minTot = secTot/60;
+                            int hourTot = minTot/60;
+
+                            positionLabel.setText(String.format(
+                                    "%d:%02d:%02d / %d:%02d:%02d",
+                                    hourNow, minNow % 60, secNow % 60,
+                                    hourTot, minTot % 60, secTot % 60));
+                        });
                     }
 
                     @Override
                     public void positionChanged(MediaPlayer mediaPlayer, float newPosition) {
-//                        System.out.format(":: New position: %s%n", newPosition);
                     }
 
                     @Override
                     public void seekableChanged(MediaPlayer mediaPlayer, int newSeekable) {
-//                        System.out.format(":: Seekable changed: %s%n", newSeekable);
                     }
 
                     @Override
                     public void pausableChanged(MediaPlayer mediaPlayer, int newPausable) {
-//                        System.out.format(":: Pausable changed: %s%n", newPausable);
                     }
 
                     @Override
                     public void titleChanged(MediaPlayer mediaPlayer, int newTitle) {
-//                        System.out.format(":: Title changed: %s%n", newTitle);
                     }
 
                     @Override
                     public void lengthChanged(MediaPlayer mediaPlayer, long newLength) {
-//                        System.out.format(":: Length changed: %s%n", newLength);
-                        slider.setEnabled(false);
-                        slider.setMaximum((int) (newLength/1000));
-                        slider.setEnabled(true);
+                        runOnGUIEventually(() -> {
+                            slider.setEnabled(false);
+                            slider.setMaximum((int) (newLength/1000));
+                            slider.setEnabled(true);
+                        });
                     }
 
                     @Override
                     public void chapterChanged(MediaPlayer mediaPlayer, int newChapter) {
-//                        System.out.format(":: Chapter changed: %s%n", newChapter);
                     }
 
                     @Override
                     public void error(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: Error: %s%n", mediaPlayer);
                     }
 
                     @Override
                     public void mediaPlayerReady(MediaPlayer mediaPlayer) {
-//                        System.out.format(":: MediaPlayerReady%n");
-/*
-                        // Hide subtitles
-                        List<TrackDescription> tracks = mediaPlayer.subpictures().trackDescriptions();
-                        System.out.format("Num tracks: %d%n", tracks.size());
-                        for (var track : tracks) {
-                            System.out.format("Track: %s%n", track);
-                        }
-//                        System.exit(0);
-                        // Disable subtitles
-                        mediaPlayer.subpictures().setTrack(-1);
-                        // Enable subtitles
-                        for (var track : tracks) {
-                            if (track.id() != -1) {
-                                mediaPlayer.subpictures().setTrack(track.id());
+                        runOnGUIEventually(() -> {
+                            audioPane.removeAll();
+
+                            JLabel label = new JLabel("Audio: ");
+                            audioPane.add(label);
+
+                            List<TrackDescription> tracks = mediaPlayer.audio().trackDescriptions();
+                            for (var track : tracks) {
+                                JButton audioButton = new JButton(track.description());
+                                audioButton.addActionListener(e -> {
+                                    mediaPlayerComponent.mediaPlayer().submit(() -> {
+                                        selectedAudio = track.id();
+                                        mediaPlayer.audio().setTrack(track.id());
+                                    });
+                                });
+                                audioButton.setFocusable(false);
+                                audioPane.add(audioButton);
+                                frame.pack();
                             }
-                        }
-//                        mediaPlayer.subpictures().setSpu(trackId);
-*/
+
+                            // Ensure the desired audio is selected
+                            if (selectedAudio != Integer.MIN_VALUE) {
+                                mediaPlayer.audio().setTrack(selectedAudio);
+                            }
+
+
+                            subtitlesPane.removeAll();
+
+                            label = new JLabel("Subtitle: ");
+                            subtitlesPane.add(label);
+
+                            tracks = mediaPlayer.subpictures().trackDescriptions();
+                            for (var track : tracks) {
+                                JButton subtitleButton = new JButton(track.description());
+                                subtitleButton.addActionListener(e -> {
+                                    mediaPlayerComponent.mediaPlayer().submit(() -> {
+                                        selectedSubtitle = track.id();
+                                        mediaPlayer.subpictures().setTrack(track.id());
+                                        showOrHideSubtitles(true);
+                                    });
+                                });
+                                subtitleButton.setFocusable(false);
+                                subtitlesPane.add(subtitleButton);
+                                frame.pack();
+                            }
+
+                            // Ensure the desired subtitle is selected
+                            if (selectedSubtitle != Integer.MIN_VALUE) {
+                                mediaPlayer.subpictures().setTrack(selectedSubtitle);
+                            }
+                        });
                     }
                 });
 
+        JPanel southPanels = new JPanel();
+        southPanels.setLayout(new BoxLayout(southPanels, BoxLayout.Y_AXIS));
+
+        audioPane.setVisible(false);
+        southPanels.add(audioPane);
+
+        subtitlesPane.setVisible(false);
+        southPanels.add(subtitlesPane);
+
         JPanel controlsPane = new JPanel();
         controlsPane.setVisible(false);
-/*
-        JButton loadButton = new JButton("Load");
-        loadButton.addActionListener(e -> {
-            mediaPlayer.controls().pause();
-            fileRef.set(null);
-            mediaPlayer.submit(() -> {
-                movieProperties.clear();
-                fileRef.set(new File("/daniel_data/film/Full_resolution/brollop.i.italien-682cb35-svtplay.mp4"));
-                load(fileRef.get());
-                mediaPlayer.media().play(fileRef.get().getAbsolutePath());
-                long time = Long.parseLong(movieProperties.getProperty("Time"));
-                mediaPlayer.controls().setTime(time);
-            });
-        });
-        controlsPane.add(loadButton);
-*/
+
         JButton stopButton = new JButton("Stop");
         stopButton.addActionListener(e -> {
             mediaPlayerComponent.mediaPlayer().submit(() -> {
@@ -316,7 +423,6 @@ public class MediaPlayerWindow {
                 // Release mediaPlayerComponent.
                 mediaPlayerComponent.mediaPlayer().controls().pause();
                 mediaPlayerComponent.release();
-                System.out.println("Exit BergqvistMediaPlayer");
                 SwingUtilities.invokeLater(frame::dispose);
             });
         });
@@ -330,7 +436,7 @@ public class MediaPlayerWindow {
         pauseButton.setFocusable(false);
         controlsPane.add(pauseButton);
 
-        JButton rewindAllButton = new JButton("Rewind all");
+        JButton rewindAllButton = new JButton("|<<");
         rewindAllButton.addActionListener(e -> {
 //            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().setTime(0);
@@ -338,37 +444,47 @@ public class MediaPlayerWindow {
         rewindAllButton.setFocusable(false);
         controlsPane.add(rewindAllButton);
 
-        JButton rewind10Button = new JButton("Rewind x10");
+        JButton rewind60Button = new JButton("<< 60");
+        rewind60Button.addActionListener(e -> {
+            mediaPlayer.controls().skipTime(-1000*10);
+        });
+        rewind60Button.setFocusable(false);
+        controlsPane.add(rewind60Button);
+
+        JButton rewind10Button = new JButton("<< 10");
         rewind10Button.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000*10);
         });
         rewind10Button.setFocusable(false);
         controlsPane.add(rewind10Button);
 
-        JButton rewindButton = new JButton("Rewind");
+        JButton rewindButton = new JButton("<<");
         rewindButton.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(-10000);
             mediaPlayer.controls().skipTime(-1000);
         });
         rewindButton.setFocusable(false);
         controlsPane.add(rewindButton);
 
-        JButton skipButton = new JButton("Skip");
+        JButton skipButton = new JButton(">>");
         skipButton.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000);
         });
         skipButton.setFocusable(false);
         controlsPane.add(skipButton);
 
-        JButton skip10Button = new JButton("Skip x10");
+        JButton skip10Button = new JButton("10 >>");
         skip10Button.addActionListener(e -> {
-//            mediaPlayer.controls().skipTime(10000);
             mediaPlayer.controls().skipTime(1000*10);
         });
         skip10Button.setFocusable(false);
         controlsPane.add(skip10Button);
+
+        JButton skip60Button = new JButton("60 >>");
+        skip60Button.addActionListener(e -> {
+            mediaPlayer.controls().skipTime(1000*60);
+        });
+        skip60Button.setFocusable(false);
+        controlsPane.add(skip60Button);
 
 
         for (var entry : bookmarkLabels.entrySet()) {
@@ -383,14 +499,18 @@ public class MediaPlayerWindow {
 
         slider.addChangeListener(e -> {
             if (slider.isEnabled()) {
-//                System.out.format("Set slider listener%n");
                 mediaPlayer.controls().setTime(slider.getValue()*1000);
-//                System.exit(0);
             }
         });
         controlsPane.add(slider);
 
-        contentPane.add(controlsPane, BorderLayout.SOUTH);
+
+        controlsPane.add(positionLabel);
+
+
+        southPanels.add(controlsPane);
+
+        contentPane.add(southPanels, BorderLayout.SOUTH);
 
         frame.setContentPane(contentPane);
         frame.setVisible(true);
@@ -400,22 +520,78 @@ public class MediaPlayerWindow {
 //        // https://stackoverflow.com/questions/11570356/jframe-in-full-screen-java
 //        device.setFullScreenWindow(null);
 
-//        System.out.format("Start paused: %s%n", fileRef.get().getAbsolutePath());
-//        mediaPlayer.media().startPaused(f.getAbsolutePath());
         mediaPlayer.media().play(fileRef.get().getAbsolutePath());
 
-//        mediaPlayer.controls().setPosition(10f);
-//        System.out.format("Skip time: 5000%n");
-//        mediaPlayer.controls().skipTime(5000);
-//        mediaPlayer.controls().setTime(300*1000);
-//        mediaPlayer.controls().setTime(311090);
         if (movieProperties.containsKey("Time")) {
             long time = Long.parseLong(movieProperties.getProperty("Time"));
             mediaPlayer.controls().setTime(time);
         }
-//        System.out.format("Load completed%n");
 
-//        KeyStroke enterKeyStroke = KeyStroke.getKeyStroke("ENTER");
+        KeyStroke leftKeyStroke = KeyStroke.getKeyStroke("LEFT");
+        Action leftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*1);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(leftKeyStroke, "LEFT");
+        frame.getRootPane().getActionMap().put("LEFT", leftAction);
+
+        KeyStroke shiftLeftKeyStroke = KeyStroke.getKeyStroke("shift LEFT");
+        Action shiftLeftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*10);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftLeftKeyStroke, "shift LEFT");
+        frame.getRootPane().getActionMap().put("shift LEFT", shiftLeftAction);
+
+        KeyStroke ctrlLeftKeyStroke = KeyStroke.getKeyStroke("control LEFT");
+        Action ctrlLeftAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(-1000*100);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ctrlLeftKeyStroke, "control LEFT");
+        frame.getRootPane().getActionMap().put("control LEFT", ctrlLeftAction);
+
+        KeyStroke rightKeyStroke = KeyStroke.getKeyStroke("RIGHT");
+        Action rightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*1);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(rightKeyStroke, "RIGHT");
+        frame.getRootPane().getActionMap().put("RIGHT", rightAction);
+
+        KeyStroke shiftRightKeyStroke = KeyStroke.getKeyStroke("shift RIGHT");
+        Action shiftRightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*10);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftRightKeyStroke, "shift RIGHT");
+        frame.getRootPane().getActionMap().put("shift RIGHT", shiftRightAction);
+
+        KeyStroke ctrlRightKeyStroke = KeyStroke.getKeyStroke("control RIGHT");
+        Action ctrlRightAction = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                mediaPlayer.controls().skipTime(1000*100);
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ctrlRightKeyStroke, "control RIGHT");
+        frame.getRootPane().getActionMap().put("control RIGHT", ctrlRightAction);
 
         KeyStroke f1KeyStroke = KeyStroke.getKeyStroke("F1");
         Action f1Action = new AbstractAction() {
@@ -428,8 +604,8 @@ public class MediaPlayerWindow {
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f1KeyStroke, "F1");
         frame.getRootPane().getActionMap().put("F1", f1Action);
 
-        KeyStroke f2KeyStroke = KeyStroke.getKeyStroke("F2");
-        Action f2Action = new AbstractAction() {
+        KeyStroke shiftF2KeyStroke = KeyStroke.getKeyStroke("shift F2");
+        Action shiftF2Action = new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e)
             {
@@ -438,8 +614,30 @@ public class MediaPlayerWindow {
                 });
             }
         };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shiftF2KeyStroke, "shift F2");
+        frame.getRootPane().getActionMap().put("shift F2", shiftF2Action);
+
+        KeyStroke f2KeyStroke = KeyStroke.getKeyStroke("F2");
+        Action f2Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                subtitlesPane.setVisible(!subtitlesPane.isVisible());
+            }
+        };
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f2KeyStroke, "F2");
         frame.getRootPane().getActionMap().put("F2", f2Action);
+
+        KeyStroke f3KeyStroke = KeyStroke.getKeyStroke("F3");
+        Action f3Action = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e)
+            {
+                audioPane.setVisible(!audioPane.isVisible());
+            }
+        };
+        frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(f3KeyStroke, "F3");
+        frame.getRootPane().getActionMap().put("F3", f3Action);
 
         KeyStroke spaceKeyStroke = KeyStroke.getKeyStroke("SPACE");
         Action spaceAction = new AbstractAction() {
