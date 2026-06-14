@@ -28,6 +28,7 @@ public class MediaPlayerWindow {
     private static final GraphicsDevice device = GraphicsEnvironment
             .getLocalGraphicsEnvironment().getScreenDevices()[0];
 
+    private final JFrame parentFrame;
     private final Object mouseCursorTimerLock = new Object();
     private final JFrame frame;
     private final Cursor emptyCursor;
@@ -113,6 +114,11 @@ public class MediaPlayerWindow {
 
         SwingUtilities.invokeLater(() -> {
             frame.dispose();
+
+            // Try to give the parentFrame the focus
+            parentFrame.setVisible(true);
+            parentFrame.toFront();
+            parentFrame.requestFocus();
         });
     }
 
@@ -184,7 +190,9 @@ public class MediaPlayerWindow {
         }
     }
 
-    public MediaPlayerWindow(File f) {
+    public MediaPlayerWindow(JFrame parentFrame, File f) {
+        this.parentFrame = parentFrame;
+
         AtomicReference<File> fileRef = new AtomicReference<>(f);
         JPanel audioPane = new JPanel();
         JPanel subtitlesPane = new JPanel();
