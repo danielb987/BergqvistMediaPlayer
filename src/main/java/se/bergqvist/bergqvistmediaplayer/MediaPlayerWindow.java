@@ -201,6 +201,7 @@ public class MediaPlayerWindow {
         slider.setEnabled(false);
 
         JLabel positionLabel = new JLabel();
+        increaseFont(positionLabel);
 
         load(fileRef.get());
 
@@ -354,6 +355,7 @@ public class MediaPlayerWindow {
                             audioPane.removeAll();
 
                             JLabel label = new JLabel("Audio: ");
+                            increaseFont(label);
                             audioPane.add(label);
 
                             List<TrackDescription> tracks = mediaPlayer.audio().trackDescriptions();
@@ -366,6 +368,7 @@ public class MediaPlayerWindow {
                                     });
                                 });
                                 audioButton.setFocusable(false);
+                                increaseFont(audioButton);
                                 audioPane.add(audioButton);
                                 frame.pack();
                             }
@@ -379,6 +382,7 @@ public class MediaPlayerWindow {
                             subtitlesPane.removeAll();
 
                             label = new JLabel("Subtitle: ");
+                            increaseFont(label);
                             subtitlesPane.add(label);
 
                             tracks = mediaPlayer.subpictures().trackDescriptions();
@@ -392,6 +396,7 @@ public class MediaPlayerWindow {
                                     });
                                 });
                                 subtitleButton.setFocusable(false);
+                                increaseFont(subtitleButton);
                                 subtitlesPane.add(subtitleButton);
                                 frame.pack();
                             }
@@ -427,6 +432,7 @@ public class MediaPlayerWindow {
             });
         });
         stopButton.setFocusable(false);
+        increaseFont(stopButton);
         controlsPane.add(stopButton);
 
         JButton pauseButton = new JButton("Pause");
@@ -434,6 +440,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().pause();
         });
         pauseButton.setFocusable(false);
+        increaseFont(pauseButton);
         controlsPane.add(pauseButton);
 
         JButton rewindAllButton = new JButton("|<<");
@@ -442,6 +449,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().setTime(0);
         });
         rewindAllButton.setFocusable(false);
+        increaseFont(rewindAllButton);
         controlsPane.add(rewindAllButton);
 
         JButton rewind60Button = new JButton("<< 60");
@@ -449,6 +457,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(-1000*10);
         });
         rewind60Button.setFocusable(false);
+        increaseFont(rewind60Button);
         controlsPane.add(rewind60Button);
 
         JButton rewind10Button = new JButton("<< 10");
@@ -456,6 +465,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(-1000*10);
         });
         rewind10Button.setFocusable(false);
+        increaseFont(rewind10Button);
         controlsPane.add(rewind10Button);
 
         JButton rewindButton = new JButton("<<");
@@ -463,6 +473,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(-1000);
         });
         rewindButton.setFocusable(false);
+        increaseFont(rewindButton);
         controlsPane.add(rewindButton);
 
         JButton skipButton = new JButton(">>");
@@ -470,6 +481,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(1000);
         });
         skipButton.setFocusable(false);
+        increaseFont(skipButton);
         controlsPane.add(skipButton);
 
         JButton skip10Button = new JButton("10 >>");
@@ -477,6 +489,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(1000*10);
         });
         skip10Button.setFocusable(false);
+        increaseFont(skip10Button);
         controlsPane.add(skip10Button);
 
         JButton skip60Button = new JButton("60 >>");
@@ -484,6 +497,7 @@ public class MediaPlayerWindow {
             mediaPlayer.controls().skipTime(1000*60);
         });
         skip60Button.setFocusable(false);
+        increaseFont(skip60Button);
         controlsPane.add(skip60Button);
 
 
@@ -492,6 +506,7 @@ public class MediaPlayerWindow {
             button.addActionListener(e -> {
                 mediaPlayer.controls().setTime((long)bookmarkTimes.get(entry.getKey()));
             });
+            increaseFont(button);
             controlsPane.add(button);
         }
 
@@ -663,6 +678,10 @@ public class MediaPlayerWindow {
         frame.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escapeKeyStroke, "ESCAPE");
         frame.getRootPane().getActionMap().put("ESCAPE", escapeAction);
 */
+    }
+
+    private void increaseFont(JComponent component) {
+        component.setFont(component.getFont().deriveFont(component.getFont().getSize() * 2.0f));
     }
 
 }
