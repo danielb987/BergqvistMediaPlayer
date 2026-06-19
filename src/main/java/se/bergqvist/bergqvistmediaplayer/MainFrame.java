@@ -85,6 +85,7 @@ public class MainFrame extends javax.swing.JFrame {
             Set<String> invalidExtensions = new HashSet<>();
             Set<String> unknownExtensions = new HashSet<>();
 
+            validExtensions.add("avi");
             validExtensions.add("mp4");
             validExtensions.add("mkv");
             validExtensions.add("webm");
