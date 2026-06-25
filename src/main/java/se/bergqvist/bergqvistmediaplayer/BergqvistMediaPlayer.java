@@ -10,7 +10,7 @@ public class BergqvistMediaPlayer {
     public static void main(String[] args) {
 
         ErrorHandler.install();
-        
+
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
@@ -29,7 +29,14 @@ public class BergqvistMediaPlayer {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> new MainFrame().setVisible(true));
+        java.awt.EventQueue.invokeLater(() -> {
+            try {
+                new MainFrame().setVisible(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw e;
+            }
+        });
 
 //        System.out.println("Hello World!");
 //        MediaPlayerWindow.main(args);
