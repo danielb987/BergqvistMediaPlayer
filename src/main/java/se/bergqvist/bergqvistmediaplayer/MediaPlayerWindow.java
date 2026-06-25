@@ -194,8 +194,12 @@ public class MediaPlayerWindow {
         this.parentFrame = parentFrame;
 
         AtomicReference<File> fileRef = new AtomicReference<>(f);
+
         JPanel audioPane = new JPanel();
+        audioPane.setLayout(new WrapLayout());
+
         JPanel subtitlesPane = new JPanel();
+        subtitlesPane.setLayout(new WrapLayout());
 
         JSlider slider = new JSlider(0,1000);
         slider.setEnabled(false);
