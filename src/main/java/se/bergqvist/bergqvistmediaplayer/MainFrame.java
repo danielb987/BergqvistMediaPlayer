@@ -141,7 +141,18 @@ public class MainFrame extends javax.swing.JFrame {
         folderTree.setSelectionRow(row);
     }
 
+    private void addFolderToMap(Path p) {
+        Path parentFolder = p.getParent();
+        if (parentFolder != null) {
+            SortedSet<Path> set = foldersAndSubfoldersMap
+                    .computeIfAbsent(parentFolder, f -> new TreeSet<>(pathComparator));
+            set.add(p);
+            addFolderToMap(parentFolder);
+        }
+    }
+
     private void loadMovies() {
+
         var mainFolders = SystemProperties.get().getMainFolders();
 
         try {
@@ -191,7 +202,6 @@ public class MainFrame extends javax.swing.JFrame {
 
                             String filename = path.getFileName().toString();
                             Path filenameFolder = path.getParent();
-                            Path parentFolder = path.getParent().getParent();
 
                             String extension = "";
                             int extensionPos = filename.lastIndexOf('.');
@@ -204,9 +214,7 @@ public class MainFrame extends javax.swing.JFrame {
                             if (validExtensions.contains(extension)) {
 //                                currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(path, false));
 
-                                foldersAndSubfoldersMap.computeIfAbsent(parentFolder, f -> new TreeSet<>(pathComparator));
-
-                                foldersAndSubfoldersMap.get(parentFolder).add(filenameFolder);
+                                addFolderToMap(filenameFolder);
 
                                 foldersAndMoviesMap.computeIfAbsent(
                                         filenameFolder, f -> new ArrayList<>());
@@ -259,6 +267,7 @@ public class MainFrame extends javax.swing.JFrame {
         folderModel.clear();
         folderModel.addAll(foldersAndMoviesMap.keySet());
 
+        // Add all folders to the tree
         for (Path p : foldersAndMoviesMap.keySet()) {
             folderTreeModel.getFolderNode(p);
         }
