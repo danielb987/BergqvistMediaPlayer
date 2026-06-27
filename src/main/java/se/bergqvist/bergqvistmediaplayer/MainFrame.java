@@ -7,6 +7,9 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 //import java.awt.event.MouseAdapter;
 //import java.awt.event.MouseEvent;
@@ -23,8 +26,8 @@ import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextArea;
 import javax.swing.JTree;
+import javax.swing.Scrollable;
 // import javax.swing.JViewport;
 // import javax.swing.event.ListSelectionEvent;
 // import javax.swing.event.ListSelectionListener;
@@ -44,11 +47,19 @@ public class MainFrame extends javax.swing.JFrame {
     private MediaPlayerWindow mediaPlayerWindow;
 
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+//    private final Collator swedishCollator = Collator.getInstance(Locale.of("sv","SE"));
+//    private final Collator swedishCollator = Collator.getInstance();
+    private final Comparator stringComparator = (a,b) -> {
+        return ((String)a).toLowerCase().compareTo(((String)b).toLowerCase());
+    };
+    Comparator pathComparator = (Comparator<Path>) (Path o1, Path o2) -> {
+        return stringComparator.compare(o1.toFile().getName().toLowerCase(), o2.toFile().getName().toLowerCase());
+    };
     private final MyTreeModel folderTreeModel = new MyTreeModel();
     private final DefaultListModel folderModel = new DefaultListModel();
-//    private final DefaultListModel<MovieItem> movieModel = new DefaultListModel<>();
-    private final List<MovieItem> movieModel = new ArrayList<>();
-    private final SortedMap<Path, List<Path>> foldersAndMovies = new TreeMap<>();
+    private final List<FolderOrMovieItem> currentFolder_foldersAndMoviesList = new ArrayList<>();
+    private final SortedMap<Path, SortedSet<Path>> foldersAndSubfoldersMap = new TreeMap<>();
+    private final SortedMap<Path, List<Path>> foldersAndMoviesMap = new TreeMap<>(pathComparator);
 
     /**
      * Creates new form MainFrame
@@ -84,7 +95,10 @@ public class MainFrame extends javax.swing.JFrame {
         ((MoviePanel)moviePanel).init();
         pack();
 
+//        folderTree.setSelectionRow(0);  // AAAAAAAAA
+//        if (1==0)
         java.awt.EventQueue.invokeLater(() -> {
+            folderTree.expandRow(0);        // AAAAAAAAA
 //            folderTree.setSelectionRow(2);  // AAAAAAAAA
             folderTree.setSelectionRow(1);  // AAAAAAAAA
         });
@@ -100,9 +114,31 @@ public class MainFrame extends javax.swing.JFrame {
     public void expandAll(JTree tree) {
         int row = 0;
         while (row < tree.getRowCount()) {
-            tree.expandRow(row);    // AAAAAAAAA
+            tree.expandRow(row);
             row++;
         }
+    }
+
+    private void selectFolderInTree(Path p) {
+
+        Path pTemp = p;
+        List<TreeItem> list = new ArrayList<>();
+        while (pTemp != null) {
+            TreeItem ti = folderTreeModel.pathTreeItemMap.get(pTemp);
+            System.out.format("TreeItem: %s%n", ti);
+            if (ti != null) {
+                // Insert first in the list
+                list.add(0, ti);
+            }
+            pTemp = pTemp.getParent();
+        }
+        // Add root node to the beginning of the list
+        list.add(0, folderTreeModel.root);
+
+        TreePath path = new TreePath(list.toArray(TreeItem[]::new));
+        folderTree.expandPath(path.getParentPath());
+        int row = folderTree.getRowForPath(path);
+        folderTree.setSelectionRow(row);
     }
 
     private void loadMovies() {
@@ -146,6 +182,7 @@ public class MainFrame extends javax.swing.JFrame {
             invalidExtensions.add("pdf");
 
 
+
             for (String folder : mainFolders) {
                 try (Stream<Path> paths = Files.walk(Paths.get(folder))) {
                     paths
@@ -154,6 +191,7 @@ public class MainFrame extends javax.swing.JFrame {
 
                             String filename = path.getFileName().toString();
                             Path filenameFolder = path.getParent();
+                            Path parentFolder = path.getParent().getParent();
 
                             String extension = "";
                             int extensionPos = filename.lastIndexOf('.');
@@ -164,13 +202,16 @@ public class MainFrame extends javax.swing.JFrame {
                             extension = extension.toLowerCase();
 
                             if (validExtensions.contains(extension)) {
-//                                movieModel.addElement(new MovieItem(path));
-                                movieModel.add(new MovieItem(path));
+//                                currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(path, false));
 
-                                foldersAndMovies.computeIfAbsent(
+                                foldersAndSubfoldersMap.computeIfAbsent(parentFolder, f -> new TreeSet<>(pathComparator));
+
+                                foldersAndSubfoldersMap.get(parentFolder).add(filenameFolder);
+
+                                foldersAndMoviesMap.computeIfAbsent(
                                         filenameFolder, f -> new ArrayList<>());
 
-                                foldersAndMovies.get(filenameFolder).add(path);
+                                foldersAndMoviesMap.get(filenameFolder).add(path);
 
                             } else if (invalidExtensions.contains(extension)) {
                                 // Do nothing
@@ -193,28 +234,36 @@ public class MainFrame extends javax.swing.JFrame {
 
         folderTree.addTreeSelectionListener((e) -> {
             var folder = ((TreeItem)e.getPath().getLastPathComponent()).getFolder();
-            movieModel.clear();
-            List<Path> tempList = foldersAndMovies.get(folder);
+            currentFolder_foldersAndMoviesList.clear();
+
+            Set<Path> tempFolderList = foldersAndSubfoldersMap.get(folder);
+            if (tempFolderList != null) {
+                List<Path> folders = new ArrayList<>(tempFolderList);
+                for (Path p : folders) {
+                    currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(p, true));
+                }
+            }
+
+            List<Path> tempList = foldersAndMoviesMap.get(folder);
             if (tempList != null) {
                 List<Path> movies = new ArrayList<>(tempList);
-                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
+                Collections.sort(movies, pathComparator);
                 for (Path p : movies) {
-                    movieModel.add(new MovieItem(p));
-//                    movieModel.addElement(new MovieItem(p));
+                    currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(p, false));
                 }
             }
             ((MoviePanel)moviePanel).showMovies();
         });
 
-        movieModel.clear();
+        currentFolder_foldersAndMoviesList.clear();
         folderModel.clear();
-        folderModel.addAll(foldersAndMovies.keySet());
+        folderModel.addAll(foldersAndMoviesMap.keySet());
 
-        for (Path p : foldersAndMovies.keySet()) {
+        for (Path p : foldersAndMoviesMap.keySet()) {
             folderTreeModel.getFolderNode(p);
         }
         folderTreeModel.notifyTreeChanged();
-        expandAll(folderTree);
+//        expandAll(folderTree);
 
 //        ((MoviePanel)moviePanel).showMovies();
 
@@ -222,18 +271,22 @@ public class MainFrame extends javax.swing.JFrame {
     }
 
 //    private static class MoviePanel extends JPanel {
-    private class MoviePanel extends JPanel {
+    private class MoviePanel extends JPanel implements Scrollable {
 
-        private final ImageIcon imageIcon;
+        private final ImageIcon folderIcon;
+        private final ImageIcon movieIcon;
         private final Font font;
 
         private MoviePanel() {
             try {
-//                var image = this.getClass().getResource("/resources/video-camera-2806_128.png");
-                var image = this.getClass().getResource("/resources/video-camera-2806_64.png");
-//                var image = this.getClass().getResource("/resources/folder-1485_128.png");
-                BufferedImage myPicture = ImageIO.read(image);
-                imageIcon = new ImageIcon(myPicture);
+//                var folderImage = this.getClass().getResource("/resources/folder-1485_128.png");
+                var folderImage = this.getClass().getResource("/resources/folder-1485_64.png");
+                BufferedImage folderBufferedImage = ImageIO.read(folderImage);
+                folderIcon = new ImageIcon(folderBufferedImage);
+
+                var movieImage = this.getClass().getResource("/resources/video-camera-2806_64.png");
+                BufferedImage movieBufferedImage = ImageIO.read(movieImage);
+                movieIcon = new ImageIcon(movieBufferedImage);
 
             } catch (IOException e) {
 //                e.printStackTrace();
@@ -254,8 +307,6 @@ public class MainFrame extends javax.swing.JFrame {
         }
 
         private void showMovies() {
-
-            System.out.format("AAW: %d, %s%n", this.getWidth(), this.getClass().getName());
 
             this.removeAll();
 
@@ -293,61 +344,50 @@ public class MainFrame extends javax.swing.JFrame {
             int y = 0;
             int width = totWidth;
 
-            for (var movie : movieModel) {
+            for (var movie : currentFolder_foldersAndMoviesList) {
                 c.gridx = x;
                 c.gridy = y;
                 c.insets = InsetsIcon;
-                JLabel picLabel = new JLabel(imageIcon);
-                add(picLabel, c);
+                JLabel iconLabel;
+                if (movie.isFolder) {
+                    iconLabel = new JLabel(folderIcon);
+                    iconLabel.addMouseListener(new MouseClickListener(()-> {
+                        selectFolderInTree(movie.path);
+                    }));
+                } else {
+                    iconLabel = new JLabel(movieIcon);
+                    iconLabel.addMouseListener(new MouseClickListener(()-> {
+                        mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.path.toFile());
+                    }));
+                }
+                add(iconLabel, c);
                 c.gridy = y + 1;
 
-//                JLabel label = new JLabel(movie.toString());
-//                label.setFont(font);
-////                MyLabel label = new MyLabel(300, 1000, movie.toString(), font);
                 c.insets = InsetsFilename;
-                MyLabel label = new MyLabel(labelWidth, movie.toString(), font, ()-> {
-                    mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.movie.toFile());
-                });
-                add(label, c);
+                MyLabel textLabel;
+                if (movie.isFolder) {
+                    textLabel = new MyLabel(labelWidth, movie.toString(), font, ()-> {
+                        selectFolderInTree(movie.path);
+                    });
+                } else {
+                    textLabel = new MyLabel(labelWidth, movie.toString(), font, ()-> {
+                        mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.path.toFile());
+                    });
+                }
+                add(textLabel, c);
                 x++;
 
-/*
-                JTextArea area = new MyTextArea(300,1000);
-                area.setBorder(null);
-                area.setText(movie.toString());
-                area.setLineWrap(true);
-                area.setEditable(false);
-                area.setFont(font);
-                add(area, c);
-                x++;
-*/
                 c.gridx = x;
 //                add(Box.createHorizontalStrut(5), c);
                 x++;
 
-                System.out.format("W: %d, %d%n", this.getWidth(), width);
-//                System.out.format("W: %d, %s%n", ((JViewport)this.getParent()).getSize().width, this.getClass().getName());
-//                System.out.format("Q: %d, %s%n", jSplitPane1.getWidth(), this.getClass().getName());
-//                System.out.format("E: %d, %s%n", jScrollPaneMovies.getViewportBorderBounds().width, this.getClass().getName());
                 width += labelWidth + 5 + 10;
-//                if (width > this.getVisibleRect().width) {
-//                if (width > 551) {
-                System.out.format("Q: %d, %d%n%n", this.getWidth(), width);
-//                if (width >= ((JViewport)this.getParent()).getSize().width) {
                 if (width >= this.getWidth()) {
-//                if (width > 1000) {
                     x = 0;
                     y += 2;
                     width = totWidth;
                 }
             }
-
-            java.awt.EventQueue.invokeLater(() -> {
-                System.out.format("AAA: %d, %d, %d%n", this.getWidth(), this.getWidth() / 6, labelWidth);
-            });
-
-
-
 
 
             c.gridx = 99;
@@ -357,41 +397,50 @@ public class MainFrame extends javax.swing.JFrame {
             c.fill = GridBagConstraints.BOTH;
             add(new JLabel(""), c);
 
+
             Container parent = this.getParent();
             parent.validate();
             parent.repaint();
 //            this.invalidate();
 //            MainFrame.this.pack();
 
-
 //            java.awt.EventQueue.invokeLater(() -> jScrollPaneMovies.getHorizontalScrollBar().setValue(0));
         }
 
-    }
+        // https://docs.oracle.com/javame/config/cdc/opt-pkgs/api/agui/jsr209/javax/swing/Scrollable.html
 
-//    private static final class MyPanel extends JPanel {
-    private static final class MyTextArea extends JTextArea {
-
-        private final int maxX;
-        private final int maxY;
-
-//        private MyPanel(int maxX, int maxY) {
-        private MyTextArea(int maxX, int maxY) {
-            this.maxX = maxX;
-            this.maxY = maxY;
-            this.getPreferredSize();
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return this.getPreferredSize();
         }
 
         @Override
-        public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+//            return scrollY *= 2;
+            return 50;
+//            return (int) (100 * Math.random());
+//            throw new UnsupportedOperationException("Not supported");
+        }
 
-//            d.width = maxX;
+        private int scrollY = 1;
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+//            return scrollY *= 2;
+            return 50;
+//            return (int) (100 * Math.random());
+//            throw new UnsupportedOperationException("Not supported");
+        }
 
-            if (d.width > maxX) {
-                d.width = maxX;
-            }
-            return d;
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            // Don't allow horizontal scrolling
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            // Allow vertical scrolling
+            return false;
         }
 
     }
@@ -482,21 +531,53 @@ public class MainFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_menuItemQuitActionPerformed
 
 
-    private static class MovieItem {
+    public static class MouseClickListener implements MouseListener {
 
-        private final Path movie;
+        private final Runnable action;
 
-        private MovieItem(Path m) {
-            this.movie = m;
+        public MouseClickListener(Runnable action) {
+            this.action = action;
         }
 
-        private Path getMovie() {
-            return movie;
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            action.run();
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            // Do nothing
+        }
+    }
+
+    private static class FolderOrMovieItem {
+
+        private final Path path;
+        private final boolean isFolder;
+
+        private FolderOrMovieItem(Path m, boolean isFolder) {
+            this.path = m;
+            this.isFolder = isFolder;
         }
 
         @Override
         public String toString() {
-            return movie.getFileName().toString();
+            return path.getFileName().toString();
         }
     }
 
@@ -536,7 +617,6 @@ public class MainFrame extends javax.swing.JFrame {
 
 
         public MyTreeModel() {
-
         }
 
         @Override
