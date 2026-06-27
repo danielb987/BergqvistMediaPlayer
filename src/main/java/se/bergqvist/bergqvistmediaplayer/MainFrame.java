@@ -1,17 +1,34 @@
 package se.bergqvist.bergqvistmediaplayer;
 
-import java.awt.event.MouseAdapter;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
+//import java.awt.event.MouseAdapter;
+//import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+// import javax.swing.Box;
 import javax.swing.DefaultListModel;
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
-import javax.swing.JList;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JTree;
+import javax.swing.Scrollable;
+// import javax.swing.JViewport;
 // import javax.swing.event.ListSelectionEvent;
 // import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TreeModelEvent;
@@ -30,10 +47,19 @@ public class MainFrame extends javax.swing.JFrame {
     private MediaPlayerWindow mediaPlayerWindow;
 
     private final EmbeddedMediaPlayerComponent mediaPlayerComponent;
+//    private final Collator swedishCollator = Collator.getInstance(Locale.of("sv","SE"));
+//    private final Collator swedishCollator = Collator.getInstance();
+    private final Comparator stringComparator = (a,b) -> {
+        return ((String)a).toLowerCase().compareTo(((String)b).toLowerCase());
+    };
+    Comparator pathComparator = (Comparator<Path>) (Path o1, Path o2) -> {
+        return stringComparator.compare(o1.toFile().getName().toLowerCase(), o2.toFile().getName().toLowerCase());
+    };
     private final MyTreeModel folderTreeModel = new MyTreeModel();
     private final DefaultListModel folderModel = new DefaultListModel();
-    private final DefaultListModel<MovieItem> movieModel = new DefaultListModel<>();
-    private final SortedMap<Path, List<Path>> foldersAndMovies = new TreeMap<>();
+    private final List<FolderOrMovieItem> currentFolder_foldersAndMoviesList = new ArrayList<>();
+    private final SortedMap<Path, SortedSet<Path>> foldersAndSubfoldersMap = new TreeMap<>();
+    private final SortedMap<Path, List<Path>> foldersAndMoviesMap = new TreeMap<>(pathComparator);
 
     /**
      * Creates new form MainFrame
@@ -41,7 +67,7 @@ public class MainFrame extends javax.swing.JFrame {
     public MainFrame() {
         mediaPlayerComponent = new EmbeddedMediaPlayerComponent();
         initComponents();
-
+/*
         movieList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -54,13 +80,29 @@ public class MainFrame extends javax.swing.JFrame {
                 }
             }
         });
-
+*/
         folderTree.setFont(folderTree.getFont().deriveFont(22f));
-        movieList.setFont(movieList.getFont().deriveFont(22f));
-        jSplitPane1.setDividerLocation(0.4);
-        jSplitPane1.setResizeWeight(0.4);
+//        movieList.setFont(movieList.getFont().deriveFont(22f));
+//        jSplitPane1.setDividerLocation(0.4);
+        jSplitPane1.setDividerLocation(0.3);
+//        jSplitPane1.setResizeWeight(0.4);
+        jSplitPane1.setResizeWeight(0.3);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         loadMovies();
+//        MoviePanel moviePanel = new MoviePanel();
+//        moviePanel.init();
+//        jScrollPaneMovies.add(moviePanel);
+        ((MoviePanel)moviePanel).init();
+        pack();
+
+//        folderTree.setSelectionRow(0);  // AAAAAAAAA
+//        if (1==0)
+        java.awt.EventQueue.invokeLater(() -> {
+            folderTree.expandRow(0);        // AAAAAAAAA
+//            folderTree.setSelectionRow(2);  // AAAAAAAAA
+            folderTree.setSelectionRow(1);  // AAAAAAAAA
+        });
+//        folderTree.setSelectionRow(2);  // AAAAAAAAA
     }
 
     public void exitProgram() {
@@ -77,6 +119,28 @@ public class MainFrame extends javax.swing.JFrame {
         }
     }
 
+    private void selectFolderInTree(Path p) {
+
+        Path pTemp = p;
+        List<TreeItem> list = new ArrayList<>();
+        while (pTemp != null) {
+            TreeItem ti = folderTreeModel.pathTreeItemMap.get(pTemp);
+            System.out.format("TreeItem: %s%n", ti);
+            if (ti != null) {
+                // Insert first in the list
+                list.add(0, ti);
+            }
+            pTemp = pTemp.getParent();
+        }
+        // Add root node to the beginning of the list
+        list.add(0, folderTreeModel.root);
+
+        TreePath path = new TreePath(list.toArray(TreeItem[]::new));
+        folderTree.expandPath(path.getParentPath());
+        int row = folderTree.getRowForPath(path);
+        folderTree.setSelectionRow(row);
+    }
+
     private void loadMovies() {
         var mainFolders = SystemProperties.get().getMainFolders();
 
@@ -87,16 +151,36 @@ public class MainFrame extends javax.swing.JFrame {
 
             validExtensions.add("avi");
             validExtensions.add("mp4");
+            validExtensions.add("m4v");
             validExtensions.add("mkv");
+            validExtensions.add("mov");
             validExtensions.add("webm");
+            validExtensions.add("webp");
+
+            validExtensions.add("mp3");
+            validExtensions.add("m4a");
 
             invalidExtensions.add("bergqvist");
-            invalidExtensions.add("BUP");
-            invalidExtensions.add("IFO");
+            invalidExtensions.add("bup");
+            invalidExtensions.add("ifo");
+            invalidExtensions.add("nfo");
             invalidExtensions.add("part");
             invalidExtensions.add("sh");
+            invalidExtensions.add("sh_");
+            invalidExtensions.add("sh__");
             invalidExtensions.add("srt");
-            invalidExtensions.add("VOB");
+            invalidExtensions.add("vob");
+            invalidExtensions.add("jpg");
+            invalidExtensions.add("jpeg");
+            invalidExtensions.add("png");
+            invalidExtensions.add("gif");
+            invalidExtensions.add("svg");
+            invalidExtensions.add("bmp");
+            invalidExtensions.add("ico");
+            invalidExtensions.add("txt");
+            invalidExtensions.add("xcf");
+            invalidExtensions.add("pdf");
+
 
 
             for (String folder : mainFolders) {
@@ -107,6 +191,7 @@ public class MainFrame extends javax.swing.JFrame {
 
                             String filename = path.getFileName().toString();
                             Path filenameFolder = path.getParent();
+                            Path parentFolder = path.getParent().getParent();
 
                             String extension = "";
                             int extensionPos = filename.lastIndexOf('.');
@@ -114,13 +199,19 @@ public class MainFrame extends javax.swing.JFrame {
                                 extension = filename.substring(extensionPos+1);
                             }
 
-                            if (validExtensions.contains(extension)) {
-                                movieModel.addElement(new MovieItem(path));
+                            extension = extension.toLowerCase();
 
-                                foldersAndMovies.computeIfAbsent(
+                            if (validExtensions.contains(extension)) {
+//                                currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(path, false));
+
+                                foldersAndSubfoldersMap.computeIfAbsent(parentFolder, f -> new TreeSet<>(pathComparator));
+
+                                foldersAndSubfoldersMap.get(parentFolder).add(filenameFolder);
+
+                                foldersAndMoviesMap.computeIfAbsent(
                                         filenameFolder, f -> new ArrayList<>());
 
-                                foldersAndMovies.get(filenameFolder).add(path);
+                                foldersAndMoviesMap.get(filenameFolder).add(path);
 
                             } else if (invalidExtensions.contains(extension)) {
                                 // Do nothing
@@ -139,30 +230,219 @@ public class MainFrame extends javax.swing.JFrame {
             e.printStackTrace();
         }
 
+//        this.pack();
+
         folderTree.addTreeSelectionListener((e) -> {
             var folder = ((TreeItem)e.getPath().getLastPathComponent()).getFolder();
-            movieModel.clear();
-            List<Path> tempList = foldersAndMovies.get(folder);
-            if (tempList != null) {
-                List<Path> movies = new ArrayList<>(tempList);
-                Collections.sort(movies, (Path a, Path b) -> a.getFileName().toString().compareTo(b.getFileName().toString()));
-                for (Path p : movies) {
-                    movieModel.addElement(new MovieItem(p));
+            currentFolder_foldersAndMoviesList.clear();
+
+            Set<Path> tempFolderList = foldersAndSubfoldersMap.get(folder);
+            if (tempFolderList != null) {
+                List<Path> folders = new ArrayList<>(tempFolderList);
+                for (Path p : folders) {
+                    currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(p, true));
                 }
             }
+
+            List<Path> tempList = foldersAndMoviesMap.get(folder);
+            if (tempList != null) {
+                List<Path> movies = new ArrayList<>(tempList);
+                Collections.sort(movies, pathComparator);
+                for (Path p : movies) {
+                    currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(p, false));
+                }
+            }
+            ((MoviePanel)moviePanel).showMovies();
         });
 
-        movieModel.clear();
+        currentFolder_foldersAndMoviesList.clear();
         folderModel.clear();
-        folderModel.addAll(foldersAndMovies.keySet());
+        folderModel.addAll(foldersAndMoviesMap.keySet());
 
-        for (Path p : foldersAndMovies.keySet()) {
+        for (Path p : foldersAndMoviesMap.keySet()) {
             folderTreeModel.getFolderNode(p);
         }
         folderTreeModel.notifyTreeChanged();
-        expandAll(folderTree);
+//        expandAll(folderTree);
+
+//        ((MoviePanel)moviePanel).showMovies();
 
 //        exitProgram();
+    }
+
+//    private static class MoviePanel extends JPanel {
+    private class MoviePanel extends JPanel implements Scrollable {
+
+        private final ImageIcon folderIcon;
+        private final ImageIcon movieIcon;
+        private final Font font;
+
+        private MoviePanel() {
+            try {
+//                var folderImage = this.getClass().getResource("/resources/folder-1485_128.png");
+                var folderImage = this.getClass().getResource("/resources/folder-1485_64.png");
+                BufferedImage folderBufferedImage = ImageIO.read(folderImage);
+                folderIcon = new ImageIcon(folderBufferedImage);
+
+                var movieImage = this.getClass().getResource("/resources/video-camera-2806_64.png");
+                BufferedImage movieBufferedImage = ImageIO.read(movieImage);
+                movieIcon = new ImageIcon(movieBufferedImage);
+
+            } catch (IOException e) {
+//                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+
+            JLabel testLabel = new JLabel();
+            font = testLabel.getFont().deriveFont(22f);
+        }
+
+        private void init() {
+            this.setBackground(Color.WHITE);
+
+//            var size = this.getPreferredSize();
+//            System.out.format("Size: %d, %d%n", size.width, size.height);
+
+//            showMovies();
+        }
+
+        private void showMovies() {
+
+            this.removeAll();
+
+            // https://docs.oracle.com/javase/tutorial/uiswing/layout/gridbag.html
+            // https://docs.oracle.com/javase/8/docs/api/java/awt/GridBagLayout.html
+            // https://docs.oracle.com/javase/8/docs/api/java/awt/GridBagConstraints.html#gridx
+            this.setLayout(new GridBagLayout());
+            GridBagConstraints c = new GridBagConstraints();
+            c.gridx = 0;
+            c.gridy = 0;
+            c.gridwidth = 1;
+            c.gridheight = 1;
+//                c.weightx = 0.5;
+//                c.weighty = 0.5;
+            c.weightx = 0;
+            c.weighty = 0;
+            c.anchor = GridBagConstraints.CENTER;
+            c.anchor = GridBagConstraints.NORTH;
+//                c.fill = GridBagConstraints.BOTH;
+            c.fill = GridBagConstraints.NONE;
+//            int insets = 10;
+//            c.insets = new Insets(insets, insets, insets, insets);
+
+
+            final Insets InsetsIcon = new Insets(15, 5, 5, 5);
+            final Insets InsetsFilename = new Insets(5, 10, 15, 10);
+
+
+//            c.insets = new Insets(top, left, bottom, right);
+
+            final int labelWidth = 230;
+            final int totWidth = labelWidth + InsetsFilename.left + InsetsFilename.right;
+
+            int x = 0;
+            int y = 0;
+            int width = totWidth;
+
+            for (var movie : currentFolder_foldersAndMoviesList) {
+                c.gridx = x;
+                c.gridy = y;
+                c.insets = InsetsIcon;
+                JLabel iconLabel;
+                if (movie.isFolder) {
+                    iconLabel = new JLabel(folderIcon);
+                    iconLabel.addMouseListener(new MouseClickListener(()-> {
+                        selectFolderInTree(movie.path);
+                    }));
+                } else {
+                    iconLabel = new JLabel(movieIcon);
+                    iconLabel.addMouseListener(new MouseClickListener(()-> {
+                        mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.path.toFile());
+                    }));
+                }
+                add(iconLabel, c);
+                c.gridy = y + 1;
+
+                c.insets = InsetsFilename;
+                MyLabel textLabel;
+                if (movie.isFolder) {
+                    textLabel = new MyLabel(labelWidth, movie.toString(), font, ()-> {
+                        selectFolderInTree(movie.path);
+                    });
+                } else {
+                    textLabel = new MyLabel(labelWidth, movie.toString(), font, ()-> {
+                        mediaPlayerWindow = new MediaPlayerWindow(MainFrame.this, movie.path.toFile());
+                    });
+                }
+                add(textLabel, c);
+                x++;
+
+                c.gridx = x;
+//                add(Box.createHorizontalStrut(5), c);
+                x++;
+
+                width += labelWidth + 5 + 10;
+                if (width >= this.getWidth()) {
+                    x = 0;
+                    y += 2;
+                    width = totWidth;
+                }
+            }
+
+
+            c.gridx = 99;
+            c.gridy = 99;
+            c.weightx = 1.0;
+            c.weighty = 1.0;
+            c.fill = GridBagConstraints.BOTH;
+            add(new JLabel(""), c);
+
+
+            Container parent = this.getParent();
+            parent.validate();
+            parent.repaint();
+//            this.invalidate();
+//            MainFrame.this.pack();
+
+//            java.awt.EventQueue.invokeLater(() -> jScrollPaneMovies.getHorizontalScrollBar().setValue(0));
+        }
+
+        // https://docs.oracle.com/javame/config/cdc/opt-pkgs/api/agui/jsr209/javax/swing/Scrollable.html
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return this.getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+//            return scrollY *= 2;
+            return 50;
+//            return (int) (100 * Math.random());
+//            throw new UnsupportedOperationException("Not supported");
+        }
+
+        private int scrollY = 1;
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+//            return scrollY *= 2;
+            return 50;
+//            return (int) (100 * Math.random());
+//            throw new UnsupportedOperationException("Not supported");
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            // Don't allow horizontal scrolling
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            // Allow vertical scrolling
+            return false;
+        }
+
     }
 
     /**
@@ -177,8 +457,8 @@ public class MainFrame extends javax.swing.JFrame {
         jSplitPane1 = new javax.swing.JSplitPane();
         jScrollPane1 = new javax.swing.JScrollPane();
         folderTree = new javax.swing.JTree();
-        movieListScrollPane = new javax.swing.JScrollPane();
-        movieList = new JList(movieModel);
+        jScrollPaneMovies = new javax.swing.JScrollPane();
+        moviePanel = new MoviePanel();
         mainMenuBar = new javax.swing.JMenuBar();
         fileMenu = new javax.swing.JMenu();
         menuItemQuit = new javax.swing.JMenuItem();
@@ -195,9 +475,20 @@ public class MainFrame extends javax.swing.JFrame {
 
         jSplitPane1.setLeftComponent(jScrollPane1);
 
-        movieListScrollPane.setViewportView(movieList);
+        javax.swing.GroupLayout moviePanelLayout = new javax.swing.GroupLayout(moviePanel);
+        moviePanel.setLayout(moviePanelLayout);
+        moviePanelLayout.setHorizontalGroup(
+            moviePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 731, Short.MAX_VALUE)
+        );
+        moviePanelLayout.setVerticalGroup(
+            moviePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 380, Short.MAX_VALUE)
+        );
 
-        jSplitPane1.setRightComponent(movieListScrollPane);
+        jScrollPaneMovies.setViewportView(moviePanel);
+
+        jSplitPane1.setRightComponent(jScrollPaneMovies);
 
         fileMenu.setText("File");
 
@@ -224,11 +515,11 @@ public class MainFrame extends javax.swing.JFrame {
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 799, Short.MAX_VALUE)
+            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 806, Short.MAX_VALUE)
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 517, Short.MAX_VALUE)
+            .addComponent(jSplitPane1)
         );
 
         pack();
@@ -240,21 +531,53 @@ public class MainFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_menuItemQuitActionPerformed
 
 
-    private static class MovieItem {
+    public static class MouseClickListener implements MouseListener {
 
-        private final Path movie;
+        private final Runnable action;
 
-        private MovieItem(Path m) {
-            this.movie = m;
+        public MouseClickListener(Runnable action) {
+            this.action = action;
         }
 
-        private Path getMovie() {
-            return movie;
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            action.run();
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            // Do nothing
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            // Do nothing
+        }
+    }
+
+    private static class FolderOrMovieItem {
+
+        private final Path path;
+        private final boolean isFolder;
+
+        private FolderOrMovieItem(Path m, boolean isFolder) {
+            this.path = m;
+            this.isFolder = isFolder;
         }
 
         @Override
         public String toString() {
-            return movie.getFileName().toString();
+            return path.getFileName().toString();
         }
     }
 
@@ -294,7 +617,6 @@ public class MainFrame extends javax.swing.JFrame {
 
 
         public MyTreeModel() {
-
         }
 
         @Override
@@ -381,12 +703,12 @@ public class MainFrame extends javax.swing.JFrame {
     private javax.swing.JMenu fileMenu;
     private javax.swing.JTree folderTree;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPaneMovies;
     private javax.swing.JSplitPane jSplitPane1;
     private javax.swing.JMenuBar mainMenuBar;
     private javax.swing.JMenuItem menuItemPreferences;
     private javax.swing.JMenuItem menuItemQuit;
-    private javax.swing.JList<MovieItem> movieList;
-    private javax.swing.JScrollPane movieListScrollPane;
+    private javax.swing.JPanel moviePanel;
     // End of variables declaration//GEN-END:variables
 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(MainFrame.class.getName());
