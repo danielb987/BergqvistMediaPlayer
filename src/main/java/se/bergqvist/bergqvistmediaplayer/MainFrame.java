@@ -21,7 +21,6 @@ import java.util.*;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
 // import javax.swing.Box;
-import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -53,10 +52,9 @@ public class MainFrame extends javax.swing.JFrame {
         return ((String)a).toLowerCase().compareTo(((String)b).toLowerCase());
     };
     Comparator pathComparator = (Comparator<Path>) (Path o1, Path o2) -> {
-        return stringComparator.compare(o1.toFile().getName().toLowerCase(), o2.toFile().getName().toLowerCase());
+        return stringComparator.compare(o1.toFile().getAbsolutePath().toLowerCase(), o2.toFile().getAbsolutePath().toLowerCase());
     };
     private final MyTreeModel folderTreeModel = new MyTreeModel();
-    private final DefaultListModel folderModel = new DefaultListModel();
     private final List<FolderOrMovieItem> currentFolder_foldersAndMoviesList = new ArrayList<>();
     private final SortedMap<Path, SortedSet<Path>> foldersAndSubfoldersMap = new TreeMap<>();
     private final SortedMap<Path, List<Path>> foldersAndMoviesMap = new TreeMap<>(pathComparator);
@@ -125,7 +123,7 @@ public class MainFrame extends javax.swing.JFrame {
         List<TreeItem> list = new ArrayList<>();
         while (pTemp != null) {
             TreeItem ti = folderTreeModel.pathTreeItemMap.get(pTemp);
-            System.out.format("TreeItem: %s%n", ti);
+//            System.out.format("TreeItem: %s%n", ti);
             if (ti != null) {
                 // Insert first in the list
                 list.add(0, ti);
@@ -212,14 +210,13 @@ public class MainFrame extends javax.swing.JFrame {
                             extension = extension.toLowerCase();
 
                             if (validExtensions.contains(extension)) {
-//                                currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(path, false));
 
                                 addFolderToMap(filenameFolder);
 
-                                foldersAndMoviesMap.computeIfAbsent(
-                                        filenameFolder, f -> new ArrayList<>());
-
-                                foldersAndMoviesMap.get(filenameFolder).add(path);
+                                foldersAndMoviesMap
+                                        .computeIfAbsent(
+                                                filenameFolder, f -> new ArrayList<>())
+                                        .add(path);
 
                             } else if (invalidExtensions.contains(extension)) {
                                 // Do nothing
@@ -260,12 +257,11 @@ public class MainFrame extends javax.swing.JFrame {
                     currentFolder_foldersAndMoviesList.add(new FolderOrMovieItem(p, false));
                 }
             }
+
             ((MoviePanel)moviePanel).showMovies();
         });
 
         currentFolder_foldersAndMoviesList.clear();
-        folderModel.clear();
-        folderModel.addAll(foldersAndMoviesMap.keySet());
 
         // Add all folders to the tree
         for (Path p : foldersAndMoviesMap.keySet()) {
@@ -273,10 +269,6 @@ public class MainFrame extends javax.swing.JFrame {
         }
         folderTreeModel.notifyTreeChanged();
 //        expandAll(folderTree);
-
-//        ((MoviePanel)moviePanel).showMovies();
-
-//        exitProgram();
     }
 
 //    private static class MoviePanel extends JPanel {
